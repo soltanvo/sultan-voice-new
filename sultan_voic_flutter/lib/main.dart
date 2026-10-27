@@ -4,7 +4,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'core/config/app_config.dart';
 import 'core/services/supabase_games_service.dart';
 import 'core/services/livekit_service.dart';
@@ -21,16 +20,15 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
   ]);
   
-  // تهيئة Supabase بأمان فقط إذا كانت البيانات مهيأة
-  if (AppConfig.isSupabaseConfigured) {
-    try {
-      await Supabase.initialize(
-        url: AppConfig.supabaseUrl,
-        anonKey: AppConfig.supabaseAnonKey,
-      );
-    } catch (e) {
-      debugPrint('[Supabase Init Warning]: $e');
-    }
+  // تهيئة Supabase مباشرة بالسيرفر الفعلي
+  try {
+    await Supabase.initialize(
+      url: AppConfig.supabaseUrl,
+      anonKey: AppConfig.supabaseAnonKey,
+    );
+    debugPrint('[Supabase] تم الاتصال بنجاح بسيرفر Supabase');
+  } catch (e) {
+    debugPrint('[Supabase Init Notice]: $e');
   }
 
   runApp(
@@ -72,534 +70,160 @@ class SultanVoicApp extends StatelessWidget {
           surface: Color(0xFF140E2D),
         ),
       ),
-      home: const SplashVersionCheckScreen(),
+      home: const RoyalSplashScreen(),
     );
   }
 }
 
-/// شاشة البداية الذكية: تفحص قاعدة بيانات Supabase للتحقق من وجود تحديث إجباري
-class SplashVersionCheckScreen extends StatefulWidget {
-  const SplashVersionCheckScreen({super.key});
+/// شاشة البداية الملكية الفاخرة: انتقال سلس وفوري للغرفة بدون أي حجب أو قيود
+class RoyalSplashScreen extends StatefulWidget {
+  const RoyalSplashScreen({super.key});
 
   @override
-  State<SplashVersionCheckScreen> createState() => _SplashVersionCheckScreenState();
+  State<RoyalSplashScreen> createState() => _RoyalSplashScreenState();
 }
 
-class _SplashVersionCheckScreenState extends State<SplashVersionCheckScreen> {
-  bool _isLoading = true;
-  String? _errorMessage;
+class _RoyalSplashScreenState extends State<RoyalSplashScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
 
   @override
   void initState() {
     super.initState();
-    _checkAppVersion();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.85, end: 1.05).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
+
+    _controller.forward();
+    _navigateToHome();
   }
 
-  /// التحقق السلس من الإصدار وقاعدة البيانات دون حجب المستخدم
-  Future<void> _checkAppVersion() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    // 1. إذا لم تكن قاعدة بيانات Supabase مهيأة بعد، الدخول المباشر للمجلس الملكي
-    if (!AppConfig.isSupabaseConfigured) {
-      await Future.delayed(const Duration(milliseconds: 1000));
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const Royal30RoomScreen(
-              roomId: 'sultan_royal_room_1',
-              roomTitle: 'مجلس Sultan Voic الملكي 👑',
-            ),
+  Future<void> _navigateToHome() async {
+    // انتظار ثانية واحدة لعرض الشعار الملكي الأنيق ثم الانتقال المباشر
+    await Future.delayed(const Duration(milliseconds: 1400));
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 600),
+          pageBuilder: (_, __, ___) => const Royal30RoomScreen(
+            roomId: 'sultan_royal_room_1',
+            roomTitle: 'مجلس Sultan Voic الملكي 👑',
           ),
-        );
-      }
-      return;
-    }
-
-    // 2. إذا كانت بيانات Supabase مهيأة، الاستعلام مع مهلة أقصاها 3 ثوانٍ
-    try {
-      final supabase = Supabase.instance.client;
-      final response = await supabase
-          .from('app_versions')
-          .select()
-          .order('id', ascending: false)
-          .limit(1)
-          .maybeSingle()
-          .timeout(const Duration(seconds: 3));
-
-      if (response != null) {
-        final String minRequiredVersion = response['min_required_version'] ?? '1.0.0';
-        final String latestVersion = response['latest_version'] ?? '1.0.0';
-        final bool forceUpdate = response['force_update'] ?? false;
-        final String downloadUrl = response['download_url'] ?? 'https://sultanvoic.com/download/latest.apk';
-        final String updateTitle = response['update_title'] ?? 'تحديث إمبراطوري جديد متاح 👑';
-        final List<dynamic> rawNotes = response['update_notes'] ?? [];
-        final List<String> updateNotes = rawNotes.map((e) => e.toString()).toList();
-
-        // هل الإصدار الحالي أقل من الأدنى المطلوب؟
-        final bool needsForcedUpdate = forceUpdate && _isVersionOlder(kCurrentAppVersion, minRequiredVersion);
-
-        if (needsForcedUpdate && mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => ForcedUpdateLockScreen(
-                currentVersion: kCurrentAppVersion,
-                latestVersion: latestVersion,
-                minRequiredVersion: minRequiredVersion,
-                downloadUrl: downloadUrl,
-                updateTitle: updateTitle,
-                updateNotes: updateNotes.isNotEmpty
-                    ? updateNotes
-                    : [
-                        'إطلاق تأثير الصقر الأسود الملكي والأشعة المظلمة لـ SVIP 9',
-                        'ترقية جودة الغرف الصوتية WebRTC Token 200 الفورية',
-                        'إضافة عجلة الحظ الملكية (Lucky Wheel)',
-                        'سد الثغرات وتحسين حماية واستقرار المجالس',
-                      ],
-              ),
-            ),
-          );
-          return;
-        }
-      }
-
-      // الانتقال للمجلس الملكي
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const Royal30RoomScreen(
-              roomId: 'sultan_royal_room_1',
-              roomTitle: 'مجلس Sultan Voic الملكي 👑',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('[Sultan Voic] تعذر الوصول لقاعدة البيانات، المتابعة التلقائية: $e');
-      // تجنب حجب المستخدم تماماً والانتقال مباشرة للغرفة
-      if (mounted) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => const Royal30RoomScreen(
-                roomId: 'sultan_royal_room_1',
-                roomTitle: 'مجلس Sultan Voic الملكي 👑',
-              ),
-            ),
-          );
-        }
-      }
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      );
     }
   }
 
-  /// مقارنة إصدارين بصيغة SemVer بسيطة (مثال: 1.0.0 < 1.1.0)
-  bool _isVersionOlder(String current, String required) {
-    try {
-      List<int> currentParts = current.split('.').map((e) => int.parse(e)).toList();
-      List<int> requiredParts = required.split('.').map((e) => int.parse(e)).toList();
-
-      for (int i = 0; i < 3; i++) {
-        int c = i < currentParts.length ? currentParts[i] : 0;
-        int r = i < requiredParts.length ? requiredParts[i] : 0;
-        if (c < r) return true;
-        if (c > r) return false;
-      }
-      return false;
-    } catch (_) {
-      return current != required;
-    }
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A071A),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // شعار التاج الإمبراطوري مع هالة الصقر الذهبي
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  gradient: const RadialGradient(
-                    colors: [Color(0xFFFFD700), Color(0xFFB8860B), Color(0xFF140E2D)],
-                  ),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFFB800).withOpacity(0.35),
-                      blurRadius: 30,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(Icons.shield_rounded, size: 52, color: Colors.black),
-                ),
-              ),
-              const SizedBox(height: 28),
-              const Text(
-                'Sultan Voic',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFFFFD700),
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'جاري التحقق من التحديثات الإمبراطورية...',
-                style: TextStyle(fontSize: 13, color: Colors.white70),
-              ),
-              const SizedBox(height: 32),
-
-              if (_isLoading)
-                const SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Color(0xFFFFB800),
-                  ),
-                ),
-
-              if (_errorMessage != null) ...[
-                Text(
-                  _errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 13),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: _checkAppVersion,
-                  icon: const Icon(Icons.refresh, color: Colors.black),
-                  label: const Text(
-                    'إعادة المحاولة',
-                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFB800),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () {
-                    // تجاوز في حالة عدم توفر إنترنت ومتابعة
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (_) => const Royal30RoomScreen(
-                          roomId: 'sultan_royal_room_1',
-                          roomTitle: 'مجلس Sultan Voic الملكي 👑',
-                        ),
-                      ),
-                    );
-                  },
-                  child: const Text('المتابعة في وضع عدم الاتصال', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                ),
-              ],
+      backgroundColor: const Color(0xFF070314),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -0.3),
+            radius: 1.3,
+            colors: [
+              Color(0xFF261047), // بنفسجي ملكي عميق
+              Color(0xFF100624),
+              Color(0xFF05020C), // أسود أوبسيديان
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// شاشة القفل الملكية الإجبارية الفخمة (Forced Update Lock Screen)
-/// تمنع المستخدم منعاً باتاً من الدخول وتمنع زر الرجوع في أندرويد
-class ForcedUpdateLockScreen extends StatelessWidget {
-  final String currentVersion;
-  final String latestVersion;
-  final String minRequiredVersion;
-  final String downloadUrl;
-  final String updateTitle;
-  final List<String> updateNotes;
-
-  const ForcedUpdateLockScreen({
-    super.key,
-    required this.currentVersion,
-    required this.latestVersion,
-    required this.minRequiredVersion,
-    required this.downloadUrl,
-    required this.updateTitle,
-    required this.updateNotes,
-  });
-
-  Future<void> _launchDownloadUrl() async {
-    final Uri uri = Uri.parse(downloadUrl);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // PopScope يمنع إغلاق الشاشة بالرجوع للخلف تماماً
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0A071A),
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment(0, -0.4),
-              radius: 1.1,
-              colors: [
-                Color(0xFF22133D), // بنفسجي ملكي مظلم
-                Color(0xFF0F0B24),
-                Color(0xFF060410),
-              ],
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
-                children: [
-                  const Spacer(),
-
-                  // أيقونة درع الصقر الأسود والتحديث الملكي الفخم
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // هالة نارية ذهبية وسوداء متوهجة
-                      Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFFFB800).withOpacity(0.4),
-                              blurRadius: 40,
-                              spreadRadius: 8,
-                            ),
-                            BoxShadow(
-                              color: const Color(0xFF9D4EDD).withOpacity(0.3),
-                              blurRadius: 60,
-                              spreadRadius: 12,
-                            ),
-                          ],
-                        ),
-                      ),
-                      // الحاوية الأساسية للشعار الملكي
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFFFFD700), Color(0xFF8B6508), Color(0xFF140E2D)],
-                          ),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFFFFE57F), width: 2.5),
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.system_update_alt_rounded,
-                            size: 46,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-                      // شارة القفل الإجباري
-                      Positioned(
-                        bottom: 0,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFD90429),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: Colors.black54, blurRadius: 4),
-                            ],
-                          ),
-                          child: const Icon(Icons.lock_rounded, size: 16, color: Colors.white),
-                        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // الشعار الملكي المتحرك
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _scaleAnimation.value,
+                    child: Opacity(
+                      opacity: _opacityAnimation.value,
+                      child: child,
+                    ),
+                  );
+                },
+                child: Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    gradient: const RadialGradient(
+                      colors: [Color(0xFFFFD700), Color(0xFFB8860B), Color(0xFF140E2D)],
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFFB800).withOpacity(0.4),
+                        blurRadius: 36,
+                        spreadRadius: 6,
                       ),
                     ],
+                    border: Border.all(color: const Color(0xFFFFD700), width: 2),
                   ),
-                  const SizedBox(height: 24),
-
-                  // العنوان الرئيسي الملكي
-                  Text(
-                    updateTitle,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFFFD700),
-                    ),
+                  child: const Center(
+                    child: Icon(Icons.workspace_premium_rounded, size: 60, color: Colors.black),
                   ),
-                  const SizedBox(height: 8),
-
-                  const Text(
-                    'يتطلب الدخول إلى غرف Sultan Voic تثبيت أحدث ملف APK لضمان أمان الغرف ونقاء الصوت',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.4),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // مقارنة أرقام الإصدارات
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A1336),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFFFB800).withOpacity(0.25)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        Column(
-                          children: [
-                            const Text('إصدارك الحالي', style: TextStyle(color: Colors.white54, fontSize: 11)),
-                            const SizedBox(height: 2),
-                            Text(
-                              'v$currentVersion',
-                              style: const TextStyle(
-                                color: Color(0xFFEF233C),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Icon(Icons.arrow_back_rounded, color: Color(0xFFFFB800), size: 18),
-                        Column(
-                          children: [
-                            const Text('الإصدار الإجباري', style: TextStyle(color: Colors.white54, fontSize: 11)),
-                            const SizedBox(height: 2),
-                            Text(
-                              'v$latestVersion 👑',
-                              style: const TextStyle(
-                                color: Color(0xFF00F5D4),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-
-                  // بطاقة مميزات التحديث الجديد
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF140E2D).withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.stars_rounded, color: Color(0xFFFFB800), size: 18),
-                              SizedBox(width: 8),
-                              Text(
-                                'مميزات التحديث الإمبراطوري الجديد:',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          ...updateNotes.map(
-                            (note) => Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('🦅 ', style: TextStyle(fontSize: 12)),
-                                  Expanded(
-                                    child: Text(
-                                      note,
-                                      style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.3),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // زر التحديث الإجباري الملكي الذهبي
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _launchDownloadUrl,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFB800),
-                        elevation: 8,
-                        shadowColor: const Color(0xFFFFB800).withOpacity(0.5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.download_rounded, color: Colors.black, size: 22),
-                          SizedBox(width: 8),
-                          Text(
-                            'تحميل التحديث الجديد الآن (ملف APK)',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // زر إعادة التحقق بعد التثبيت
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (_) => const SplashVersionCheckScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.refresh_rounded, size: 16, color: Colors.white60),
-                    label: const Text(
-                      'أعد التحقق بعد تثبيت ملف الـ APK',
-                      style: TextStyle(color: Colors.white60, fontSize: 12),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 28),
+
+              // العنوان الملكي
+              const Text(
+                'Sultan Voic',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFFFFD700),
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // النص الترحيبي
+              const Text(
+                'مرحباً بك في المجالس الملكية 👑',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white70,
+                ),
+              ),
+              const SizedBox(height: 36),
+
+              // مؤشر التحميل الأنيق
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Color(0xFFFFB800),
+                ),
+              ),
+            ],
           ),
         ),
       ),
