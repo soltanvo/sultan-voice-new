@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'core/config/app_config.dart';
+import 'core/services/supabase_games_service.dart';
 import 'core/services/livekit_service.dart';
 import 'features/room/screens/royal_30_room_screen.dart';
 
@@ -36,6 +37,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LiveKitService()),
+        ChangeNotifierProvider(create: (_) => SupabaseGamesService()..initUserBalance()),
       ],
       child: const SultanVoicApp(),
     ),
