@@ -279,7 +279,7 @@ class _OfficialGamesHubDialogState extends State<OfficialGamesHubDialog> with Si
                       ),
                       Row(
                         children: [
-                          const Icon(Icons.cloud_done, color: Colors.emeraldAccent, size: 12),
+                          const Icon(Icons.cloud_done, color: Colors.greenAccent, size: 12),
                           const SizedBox(width: 4),
                           Text(
                             'متصل بـ Supabase • ${gamesService.userCoins.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} كوين',
@@ -551,7 +551,7 @@ class _OfficialGamesHubDialogState extends State<OfficialGamesHubDialog> with Si
                   children: [
                     Text(
                       _isSpinning ? 'جاري اللعب...' : 'تشغيل ${currentMeta['name']} ($_bet كوين)',
-                      style: const TextStyle(fontWeight: FontWeight.black, fontSize: 14),
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
                     ),
                     const SizedBox(width: 8),
                     const Icon(Icons.play_circle_fill_rounded, size: 22),
