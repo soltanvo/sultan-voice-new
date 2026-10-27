@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'core/config/app_config.dart';
 import 'core/services/livekit_service.dart';
 import 'features/room/screens/royal_30_room_screen.dart';
 
@@ -19,11 +20,17 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
   ]);
   
-  // تهيئة Supabase
-  await Supabase.initialize(
-    url: 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co',
-    anonKey: 'YOUR_SUPABASE_ANON_KEY',
-  );
+  // تهيئة Supabase بأمان فقط إذا كانت البيانات مهيأة
+  if (AppConfig.isSupabaseConfigured) {
+    try {
+      await Supabase.initialize(
+        url: AppConfig.supabaseUrl,
+        anonKey: AppConfig.supabaseAnonKey,
+      );
+    } catch (e) {
+      debugPrint('[Supabase Init Warning]: $e');
+    }
+  }
 
   runApp(
     MultiProvider(
@@ -86,13 +93,30 @@ class _SplashVersionCheckScreenState extends State<SplashVersionCheckScreen> {
     _checkAppVersion();
   }
 
-  /// الاستعلام عن جدول app_versions من Supabase ومقارنة الإصدارات
+  /// التحقق السلس من الإصدار وقاعدة البيانات دون حجب المستخدم
   Future<void> _checkAppVersion() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
+    // 1. إذا لم تكن قاعدة بيانات Supabase مهيأة بعد، الدخول المباشر للمجلس الملكي
+    if (!AppConfig.isSupabaseConfigured) {
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const Royal30RoomScreen(
+              roomId: 'sultan_royal_room_1',
+              roomTitle: 'مجلس Sultan Voic الملكي 👑',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    // 2. إذا كانت بيانات Supabase مهيأة، الاستعلام مع مهلة أقصاها 3 ثوانٍ
     try {
       final supabase = Supabase.instance.client;
       final response = await supabase
@@ -100,7 +124,8 @@ class _SplashVersionCheckScreenState extends State<SplashVersionCheckScreen> {
           .select()
           .order('id', ascending: false)
           .limit(1)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 3));
 
       if (response != null) {
         final String minRequiredVersion = response['min_required_version'] ?? '1.0.0';
@@ -111,7 +136,7 @@ class _SplashVersionCheckScreenState extends State<SplashVersionCheckScreen> {
         final List<dynamic> rawNotes = response['update_notes'] ?? [];
         final List<String> updateNotes = rawNotes.map((e) => e.toString()).toList();
 
-        // هل الإصدار الحالي أقل من الأدنى المطلوب أم التحديث الإجباري مفعل للإصدارات الأقل؟
+        // هل الإصدار الحالي أقل من الأدنى المطلوب؟
         final bool needsForcedUpdate = forceUpdate && _isVersionOlder(kCurrentAppVersion, minRequiredVersion);
 
         if (needsForcedUpdate && mounted) {
@@ -138,7 +163,7 @@ class _SplashVersionCheckScreenState extends State<SplashVersionCheckScreen> {
         }
       }
 
-      // إذا كان الإصدار محدثاً، الانتقال المباشر للمجلس الملكي
+      // الانتقال للمجلس الملكي
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
@@ -150,13 +175,20 @@ class _SplashVersionCheckScreenState extends State<SplashVersionCheckScreen> {
         );
       }
     } catch (e) {
-      debugPrint('خطأ أثناء فحص إصدار التطبيق: $e');
-      // في حالة تعذر الاتصال أو الخطأ، إعطاء الخيار للمستخدم بإعادة المحاولة
+      debugPrint('[Sultan Voic] تعذر الوصول لقاعدة البيانات، المتابعة التلقائية: $e');
+      // تجنب حجب المستخدم تماماً والانتقال مباشرة للغرفة
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'تعذر التحقق من ترخيص التحديث. تحقق من اتصال الإنترنت.';
-        });
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const Royal30RoomScreen(
+                roomId: 'sultan_royal_room_1',
+                roomTitle: 'مجلس Sultan Voic الملكي 👑',
+              ),
+            ),
+          );
+        }
       }
     }
   }
