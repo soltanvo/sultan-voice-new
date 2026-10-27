@@ -1,7 +1,7 @@
 /// إعدادات الاتصال المركزية لتطبيق Sultan Voic الملكي
 class AppConfig {
   /// رابط مشروع Supabase الخاص بك
-  static const String supabaseUrl = 'https://iplbbyghcdftdctkwjyi.supabase.co';
+  static const String supabaseUrl = static const String supabaseUrl = 'https://supabase.co';
 
   /// المفتاح المعلن (Publishable / Anon key) لمشروعك في Supabase
   static const String supabaseAnonKey = 'sb_publishable_Fhk48BtMgv322a-_zFH4vw_XVT1Q_4w';
