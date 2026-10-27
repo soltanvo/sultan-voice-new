@@ -110,11 +110,13 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
       builder: (_) => Dialog(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        child: SvipEntryBanner(
-          userName: 'سلطان العرب 👑',
-          avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-          svipLevel: level,
-          onComplete: () => Navigator.of(context, rootNavigator: true).pop(),
+        child: GestureDetector(
+          onTap: () => Navigator.of(context, rootNavigator: true).pop(),
+          child: SvipEntryBanner(
+            userName: 'سلطان العرب 👑',
+            avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+            svipLevel: level,
+          ),
         ),
       ),
     );
@@ -423,7 +425,7 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
                 SizedBox(width: 4),
                 Text(
                   'عرش مالك الغرفة الإمبراطوري',
-                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.black, fontSize: 11),
+                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 11),
                 ),
               ],
             ),
@@ -640,7 +642,7 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
             icon: const Icon(Icons.casino_rounded, size: 20),
             label: const Text(
               'صالة الألعاب (7 ألعاب) 🐯',
-              style: TextStyle(fontWeight: FontWeight.black, fontSize: 13),
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
             ),
             onPressed: () {
               showDialog(
