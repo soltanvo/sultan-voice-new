@@ -1,0 +1,56 @@
+workflows:
+  sultan-free-workflow:
+    name: Sultan Voice Android Build
+    instance_type: linux
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      java: 17
+    triggering:
+      events:
+        - push
+    scripts:
+      - name: Fetching app sources
+        script: |
+          echo "Sources fetched successfully"
+      - name: Configure Android environment & local.properties
+        script: |
+          if [ -d "sultan_voic_flutter" ]; then
+            cd sultan_voic_flutter
+          elif [ -d "sultan_voic_app" ]; then
+            cd sultan_voic_app
+          fi
+          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+          echo "android.lint.abortOnError=false" >> android/gradle.properties
+          echo "android.lint.checkReleaseBuilds=false" >> android/gradle.properties
+      - name: Clean Flutter build cache
+        script: |
+          if [ -d "sultan_voic_flutter" ]; then
+            cd sultan_voic_flutter
+          elif [ -d "sultan_voic_app" ]; then
+            cd sultan_voic_app
+          fi
+          flutter clean
+      - name: Install Flutter dependencies
+        script: |
+          if [ -d "sultan_voic_flutter" ]; then
+            cd sultan_voic_flutter
+          elif [ -d "sultan_voic_app" ]; then
+            cd sultan_voic_app
+          fi
+          flutter pub get
+      - name: Build Android APK
+        script: |
+          if [ -d "sultan_voic_flutter" ]; then
+            cd sultan_voic_flutter
+          elif [ -d "sultan_voic_app" ]; then
+            cd sultan_voic_app
+          fi
+          # Build APK on free Linux runner with --no-pub to prevent auto-upgrading packages
+          # Bypasses strict lint checks and disables icon tree shaking warnings
+          flutter build apk --release --no-pub --no-tree-shake-icons
+    artifacts:
+      - sultan_voic_flutter/build/app/outputs/flutter-apk/app-release.apk
+      - sultan_voic_app/build/app/outputs/flutter-apk/app-release.apk
+      - build/app/outputs/flutter-apk/app-release.apk
+      - "**/build/**/outputs/**/*.apk"

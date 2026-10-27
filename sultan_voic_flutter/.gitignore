@@ -1,0 +1,8 @@
+# Flutter / Dart
+build/
+.dart_tool/
+.gradle/
+local.properties
+*.apk
+.DS_Store
+.github/

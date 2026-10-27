@@ -1,0 +1,55 @@
+name: sultan_voic_app
+description: "Sultan Voic - Royal Voice Rooms 30 Seats with LiveKit, Supabase, SVIP, Agency & Minigames"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  
+  # الصوت المباشر والـ WebRTC (Token 200)
+  livekit_client: ^2.2.0
+  permission_handler: ^11.3.1
+  
+  # قاعدة البيانات والمصادقة الفورية
+  supabase_flutter: ^2.8.0
+  
+  # إدارة الحالة والخطوط والواجهات والأنيميشن
+  provider: ^6.1.2
+  google_fonts: ^6.1.0
+  flutter_animate: ^4.5.0
+  lottie: ^3.1.0
+  cached_network_image: ^3.3.1
+  lucide_icons: ^0.257.0
+  shared_preferences: ^2.2.3
+  audioplayers: ^6.0.0
+  url_launcher: ^6.2.6
+
+dependency_overrides:
+  protobuf: ^3.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/images/greedy_box.png
+    - assets/images/fortune_dragon.png
+    - assets/images/slot_tiger.png
+    - assets/images/queen_of_bounty.png
+    - assets/images/yummy.png
+    - assets/images/mahjong_ways_2.png
+    - assets/images/luck_77.png
+    - assets/images/gates_of_olympus.png
+    - assets/images/fortune_tiger.png
+    - assets/lottie/
