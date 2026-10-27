@@ -20,15 +20,17 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
   ]);
   
-  // تهيئة Supabase مباشرة بالسيرفر الفعلي
-  try {
-    await Supabase.initialize(
-      url: AppConfig.supabaseUrl,
-      anonKey: AppConfig.supabaseAnonKey,
-    );
-    debugPrint('[Supabase] تم الاتصال بنجاح بسيرفر Supabase');
-  } catch (e) {
-    debugPrint('[Supabase Init Notice]: $e');
+  // تهيئة Supabase بأمان تام
+  if (AppConfig.isSupabaseConfigured) {
+    try {
+      await Supabase.initialize(
+        url: AppConfig.supabaseUrl,
+        anonKey: AppConfig.supabaseAnonKey,
+      );
+      debugPrint('[Supabase] تم الاتصال بنجاح بسيرفر Supabase');
+    } catch (e) {
+      debugPrint('[Supabase Init Notice]: $e');
+    }
   }
 
   runApp(
@@ -62,7 +64,7 @@ class SultanVoicApp extends StatelessWidget {
       ],
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0A071A),
+        scaffoldBackgroundColor: const Color(0xFF070314),
         textTheme: GoogleFonts.cairoTextTheme(ThemeData.dark().textTheme),
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFFFFB800), // ذهبي ملكي
@@ -75,7 +77,8 @@ class SultanVoicApp extends StatelessWidget {
   }
 }
 
-/// شاشة البداية الملكية الفاخرة: انتقال سلس وفوري للغرفة بدون أي حجب أو قيود
+/// شاشة البداية الملكية الفاخرة الكاملة (Full Screen Splash)
+/// تعرض صورة شعار سلطان الذهبي مع التاج والخلفية المتدرجة لتملأ الشاشة بالكامل
 class RoyalSplashScreen extends StatefulWidget {
   const RoyalSplashScreen({super.key});
 
@@ -84,37 +87,30 @@ class RoyalSplashScreen extends StatefulWidget {
 }
 
 class _RoyalSplashScreenState extends State<RoyalSplashScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _opacityAnimation;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1400),
     );
-
-    _scaleAnimation = Tween<double>(begin: 0.85, end: 1.05).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    _fadeAnimation = Tween<double>(begin: 0.88, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic),
     );
-
-    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
-
-    _controller.forward();
+    _fadeController.forward();
     _navigateToHome();
   }
 
   Future<void> _navigateToHome() async {
-    // انتظار ثانية واحدة لعرض الشعار الملكي الأنيق ثم الانتقال المباشر
-    await Future.delayed(const Duration(milliseconds: 1400));
+    // عرض شاشة البداية الملكية الكاملة لمدة 2.4 ثانية ثم الانتقال بسلاسة
+    await Future.delayed(const Duration(milliseconds: 2400));
     if (mounted) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 600),
+          transitionDuration: const Duration(milliseconds: 700),
           pageBuilder: (_, __, ___) => const Royal30RoomScreen(
             roomId: 'sultan_royal_room_1',
             roomTitle: 'مجلس Sultan Voic الملكي 👑',
@@ -129,7 +125,7 @@ class _RoyalSplashScreenState extends State<RoyalSplashScreen> with SingleTicker
 
   @override
   void dispose() {
-    _controller.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
@@ -137,95 +133,87 @@ class _RoyalSplashScreenState extends State<RoyalSplashScreen> with SingleTicker
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF070314),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -0.3),
-            radius: 1.3,
-            colors: [
-              Color(0xFF261047), // بنفسجي ملكي عميق
-              Color(0xFF100624),
-              Color(0xFF05020C), // أسود أوبسيديان
-            ],
-          ),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // الشعار الملكي المتحرك
-              AnimatedBuilder(
-                animation: _controller,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _scaleAnimation.value,
-                    child: Opacity(
-                      opacity: _opacityAnimation.value,
-                      child: child,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 1. الصورة الملكية الكاملة المتدرجة مع شعار "سلطان" والتاج الذهبي تملأ الشاشة
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: Image.asset(
+              'assets/images/sultan_splash_bg.png',
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              alignment: Alignment.center,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment(0, -0.2),
+                      radius: 1.3,
+                      colors: [
+                        Color(0xFF261047),
+                        Color(0xFF100624),
+                        Color(0xFF05020C),
+                      ],
                     ),
-                  );
-                },
-                child: Container(
-                  width: 110,
-                  height: 110,
-                  decoration: BoxDecoration(
-                    gradient: const RadialGradient(
-                      colors: [Color(0xFFFFD700), Color(0xFFB8860B), Color(0xFF140E2D)],
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFFFB800).withOpacity(0.4),
-                        blurRadius: 36,
-                        spreadRadius: 6,
-                      ),
-                    ],
-                    border: Border.all(color: const Color(0xFFFFD700), width: 2),
                   ),
                   child: const Center(
-                    child: Icon(Icons.workspace_premium_rounded, size: 60, color: Colors.black),
+                    child: Text(
+                      'سلطان 👑',
+                      style: TextStyle(
+                        color: Color(0xFFFFD700),
+                        fontSize: 44,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              // العنوان الملكي
-              const Text(
-                'Sultan Voic',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFFFFD700),
-                  letterSpacing: 1.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // النص الترحيبي
-              const Text(
-                'مرحباً بك في المجالس الملكية 👑',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white70,
-                ),
-              ),
-              const SizedBox(height: 36),
-
-              // مؤشر التحميل الأنيق
-              const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: Color(0xFFFFB800),
-                ),
-              ),
-            ],
+                );
+              },
+            ),
           ),
-        ),
+
+          // 2. مؤشر تحميل ذهبي خفيف وأنيق في أسفل الشاشة
+          Positioned(
+            bottom: 42,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFFD700).withOpacity(0.5),
+                          blurRadius: 16,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: Color(0xFFFFD700),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'جاري فتح المجلس الملكي...',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
