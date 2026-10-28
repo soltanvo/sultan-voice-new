@@ -26,7 +26,8 @@ class SupabaseGamesService extends ChangeNotifier {
 
       final supabase = Supabase.instance.client;
       final currentUser = supabase.auth.currentUser;
-      _userId = currentUser?.id ?? 'sultan_guest_1';
+      if (currentUser == null) return;
+      _userId = currentUser.id;
 
       // جلب رصيد الكوينز من جدول profiles إن وجد
       final response = await supabase
@@ -65,7 +66,8 @@ class SupabaseGamesService extends ChangeNotifier {
     if (AppConfig.isSupabaseConfigured) {
       try {
         final supabase = Supabase.instance.client;
-        final targetId = _userId ?? 'sultan_guest_1';
+        if (_userId == null) return true;
+        final targetId = _userId!;
 
         await supabase.from('profiles').update({
           'coins': _userCoins,
@@ -105,7 +107,10 @@ class SupabaseGamesService extends ChangeNotifier {
     if (AppConfig.isSupabaseConfigured) {
       try {
         final supabase = Supabase.instance.client;
-        final targetId = _userId ?? 'sultan_guest_1';
+        if (_userId == null) {
+          return {'success': false, 'error': 'يجب تسجيل الدخول للعب'};
+        }
+        final targetId = _userId!;
 
         final rpcResult = await supabase.rpc(
           'execute_bet',

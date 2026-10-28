@@ -63,48 +63,45 @@ class _RoyalAuthScreenState extends State<RoyalAuthScreen> {
     });
 
     try {
-      if (AppConfig.isSupabaseConfigured) {
-        final supabase = Supabase.instance.client;
-
-        if (_isSignUp) {
-          // 1. إنشاء حساب رسمي جديد
-          final authRes = await supabase.auth.signUp(
-            email: email,
-            password: password,
-          );
-
-          if (authRes.user != null) {
-            try {
-              await supabase.from('profiles').upsert({
-                'id': authRes.user!.id,
-                'display_name': email.split('@').first,
-                'role': 'user',
-                'coins': 1000,
-                'created_at': DateTime.now().toIso8601String(),
-              });
-            } catch (_) {}
-          }
-        } else {
-          // 2. تسجيل دخول رسمي
-          await supabase.auth.signInWithPassword(
-            email: email,
-            password: password,
-          );
-        }
+      if (!AppConfig.isSupabaseConfigured) {
+        setState(() {
+          _errorMessage = 'خدمة المصادقة غير متاحة حالياً، يرجى المحاولة لاحقاً';
+        });
+        return;
       }
 
-      // الانتقال المباشر والناجح للغرفة الرسمية
+      final supabase = Supabase.instance.client;
+
+      if (_isSignUp) {
+        final authRes = await supabase.auth.signUp(
+          email: email,
+          password: password,
+        );
+
+        if (authRes.user != null) {
+          try {
+            await supabase.from('profiles').upsert({
+              'id': authRes.user!.id,
+              'display_name': email.split('@').first,
+              'role': 'user',
+              'coins': 1000,
+              'created_at': DateTime.now().toIso8601String(),
+            });
+          } catch (_) {}
+        }
+      } else {
+        await supabase.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+      }
+
       _navigateToRoom();
     } on AuthException catch (e) {
       debugPrint('[Supabase Auth Exception]: ${e.message}');
       final msg = e.message.toLowerCase();
 
-      // معالجة حالة Email not confirmed بحيث يتم السماح بالدخول إذا كانت البيانات صحيحة
-      if (msg.contains('email not confirmed')) {
-        debugPrint('[Auth Notice]: تم التحقق من كلمة المرور، جاري الدخول للمجلس');
-        _navigateToRoom();
-        return;
-      }
+
 
       setState(() {
         if (msg.contains('invalid login credentials') || msg.contains('invalid credentials')) {
