@@ -7,6 +7,7 @@ import '../widgets/seat_item_widget.dart';
 import '../../svip/widgets/svip_entry_banner.dart';
 import '../../agency/screens/agency_management_sheet.dart';
 import '../../games/official_games_hub.dart';
+import '../../games/premium_gaming_hub_sheet.dart';
 
 class SeatData {
   final int seatIndex;
@@ -787,9 +788,11 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> with TickerProvid
             icon: Icons.sports_esports_rounded,
             label: 'الألعاب',
             color: Colors.amberAccent,
-            onTap: () => showDialog(
+            onTap: () => showModalBottomSheet(
               context: context,
-              builder: (_) => const OfficialGamesHubDialog(),
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => const PremiumGamingHubSheet(),
             ),
           ),
 
