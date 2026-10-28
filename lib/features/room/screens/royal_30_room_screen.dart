@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/services/livekit_service.dart';
@@ -29,6 +30,20 @@ class SeatData {
   });
 }
 
+class ChatMessage {
+  final String sender;
+  final String text;
+  final int svipLevel;
+  final DateTime time;
+
+  ChatMessage({
+    required this.sender,
+    required this.text,
+    required this.svipLevel,
+    required this.time,
+  });
+}
+
 class Royal30RoomScreen extends StatefulWidget {
   final String roomId;
   final String roomTitle;
@@ -43,18 +58,59 @@ class Royal30RoomScreen extends StatefulWidget {
   State<Royal30RoomScreen> createState() => _Royal30RoomScreenState();
 }
 
-class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
+class _Royal30RoomScreenState extends State<Royal30RoomScreen> with TickerProviderStateMixin {
+  late String _activeRoomId;
+  late String _activeRoomTitle;
+  int _activeMicCount = 30; // 2, 4, 6, 8, 10, 15, 20, 30
+  final List<int> _supportedMicCounts = [2, 4, 6, 8, 10, 15, 20, 30];
+
   late List<SeatData> seats;
   int? mySeatIndex = 0;
   bool _isCinemaMode = false;
 
+  // صاروخ الإطلاق الملكي (Rocket Launch Animation)
+  bool _isRocketLaunching = false;
+  late AnimationController _rocketController;
+  late Animation<double> _rocketYAnimation;
+  late Animation<double> _rocketScaleAnimation;
+
+  // المحادثة العامة
+  final List<ChatMessage> _messages = [
+    ChatMessage(sender: 'سلطان العرب 👑', text: 'أهلاً وسهلاً بجميع الأمراء في مجلس Sultan Voic الملكي! ✨', svipLevel: 9, time: DateTime.now().subtract(const Duration(minutes: 5))),
+    ChatMessage(sender: 'مدير المجلس 🛡️', text: 'تم تفعيل نظام حماية المايكات وتخطي الاتصالات العالمية بنجاح.', svipLevel: 6, time: DateTime.now().subtract(const Duration(minutes: 2))),
+    ChatMessage(sender: 'الأميرة نور 🌸', text: 'مساء الورد والياسمين لجميع الحضور الكرام 🌹', svipLevel: 5, time: DateTime.now().subtract(const Duration(minutes: 1))),
+  ];
+
   @override
   void initState() {
     super.initState();
-    _init30Seats();
+    _activeRoomId = widget.roomId;
+    _activeRoomTitle = widget.roomTitle;
+    _initSeats();
+
+    _rocketController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    );
+
+    _rocketYAnimation = Tween<double>(begin: 1.2, end: -1.3).animate(
+      CurvedAnimation(parent: _rocketController, curve: Curves.easeInOutCubic),
+    );
+
+    _rocketScaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween<double>(begin: 0.6, end: 1.3), weight: 30),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.3, end: 1.0), weight: 40),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 1.8), weight: 30),
+    ]).animate(_rocketController);
   }
 
-  void _init30Seats() {
+  @override
+  void dispose() {
+    _rocketController.dispose();
+    super.dispose();
+  }
+
+  void _initSeats() {
     seats = List.generate(30, (index) {
       if (index == 0) {
         return SeatData(
@@ -103,6 +159,14 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
     });
   }
 
+  void _triggerRocketLaunch() {
+    if (_isRocketLaunching) return;
+    setState(() => _isRocketLaunching = true);
+    _rocketController.forward(from: 0.0).then((_) {
+      if (mounted) setState(() => _isRocketLaunching = false);
+    });
+  }
+
   void _triggerSvipBanner(int level) {
     showDialog(
       context: context,
@@ -122,6 +186,20 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
     );
   }
 
+  void _switchOfficialRoom(String roomId, String title) {
+    setState(() {
+      _activeRoomId = roomId;
+      _activeRoomTitle = title;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('تم الانتقال إلى: $title'),
+        backgroundColor: const Color(0xFF7C3AED),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final liveKit = context.watch<LiveKitService>();
@@ -129,175 +207,235 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF090414),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -0.5),
-            radius: 1.4,
-            colors: [
-              Color(0xFF28114B), // بنفسجي ملكي فخم
-              Color(0xFF120726),
-              Color(0xFF06020D), // أسود أوبسيديان
-            ],
+      body: Stack(
+        children: [
+          // 1. الخلفية المتدرجة مع الأطراف الجانبية الملكية المضيئة (VIP Aura Side Borders)
+          Container(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0, -0.4),
+                radius: 1.4,
+                colors: [
+                  Color(0xFF28114B), // بنفسجي ملكي
+                  Color(0xFF120726),
+                  Color(0xFF06020D), // أسود أوبسيديان
+                ],
+              ),
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // 1. الشريط العلوي الملكي المنظم
-              _buildTopHeader(gamesService),
 
-              // 2. شريط تحويل الأوضاع (مجلس 30 مقعداً vs سينما و CP)
-              _buildModeSwitcher(),
-
-              // 3. المحتوى الرئيسي (العرش والمقاعد)
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  child: _isCinemaMode
-                      ? _buildCinemaSection()
-                      : Column(
-                          children: [
-                            // عرش مالك الغرفة الملكي
-                            _buildThroneCard(),
-                            const SizedBox(height: 12),
-
-                            // مقاعد كبار الشخصيات والنواب (المقاعد 2 إلى 6)
-                            _buildVipRow(),
-                            const SizedBox(height: 14),
-
-                            // شبكة مقاعد الضيوف الـ 24 (المقاعد 7 إلى 30)
-                            _buildGuestGrid(),
-                            const SizedBox(height: 90), // مساحة للأزرار العائمة
-                          ],
-                        ),
+          // الحواف الجانبية المتوهجة الملكية (Side VIP Borders)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 4,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFFFFD700).withOpacity(0.8),
+                    const Color(0xFF9D4EDD).withOpacity(0.6),
+                    Colors.transparent,
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      ),
-      bottomSheet: _buildFloatingDock(liveKit, gamesService),
-    );
-  }
-
-  /// الشريط العلوي الملكي بتنسيق منظم ومريح
-  Widget _buildTopHeader(SupabaseGamesService gamesService) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF12082B).withOpacity(0.9),
-        border: const Border(
-          bottom: BorderSide(color: Color(0x33FFD700), width: 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          // الشعار والعنوان
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFD700), Color(0xFFB8860B)],
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: 4,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFFFFD700).withOpacity(0.8),
+                    const Color(0xFF9D4EDD).withOpacity(0.6),
+                    Colors.transparent,
+                  ],
+                ),
               ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.amber.withOpacity(0.3),
-                  blurRadius: 10,
+            ),
+          ),
+
+          // المحتوى الرئيسي
+          SafeArea(
+            child: Column(
+              children: [
+                // الشريط العلوي مع اختيار الرومين الرسميين
+                _buildTopHeader(gamesService),
+
+                // شريط معلومات المايكات الحالية ونمط السينما
+                _buildRoomStatusSubBar(),
+
+                // شبكة المايكات الديناميكية (2 إلى 30 مقعداً) أو وضع السينما
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: Column(
+                      children: [
+                        if (_isCinemaMode) _buildCinemaPlayer(),
+                        _buildDynamicMicGrid(),
+                        const SizedBox(height: 100), // مساحة للشريط السفلي
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: const Icon(Icons.workspace_premium_rounded, color: Colors.black, size: 20),
+          ),
+
+          // 2. حاوية صاروخ الإطلاق الملكي (Rocket Launch Animation Container)
+          if (_isRocketLaunching)
+            AnimatedBuilder(
+              animation: _rocketController,
+              builder: (context, child) {
+                return Positioned.fill(
+                  child: IgnorePointer(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // وميض الشاشة الخلفي
+                        Container(
+                          color: const Color(0xFFFFD700).withOpacity((1.0 - _rocketController.value) * 0.18),
+                        ),
+                        // الصاروخ المتحرك لأعلى
+                        Align(
+                          alignment: Alignment(0, _rocketYAnimation.value),
+                          child: Transform.scale(
+                            scale: _rocketScaleAnimation.value,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('🚀', style: TextStyle(fontSize: 90)),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFF8800)]),
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10)],
+                                  ),
+                                  child: const Text(
+                                    'صاروخ الدعم الملكي انطلق! 🚀🔥',
+                                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+      // الشريط السفلي الأفقي المرتب تماماً من اليسار إلى اليمين
+      bottomSheet: _buildStrictHorizontalBottomBar(liveKit),
+    );
+  }
+
+  /// الشريط العلوي مع اختيار الرومين الرسميين: خدمة العملاء vs روم الإدارة
+  Widget _buildTopHeader(SupabaseGamesService gamesService) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF12082B).withOpacity(0.92),
+        border: const Border(bottom: BorderSide(color: Color(0x33FFD700), width: 1)),
+      ),
+      child: Row(
+        children: [
+          // زر تبديل الرومين الرسميين
+          GestureDetector(
+            onTap: _showOfficialRoomsPicker,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFB8860B)]),
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.4), blurRadius: 8)],
+              ),
+              child: const Icon(Icons.workspace_premium_rounded, color: Colors.black, size: 20),
+            ),
           ),
           const SizedBox(width: 8),
 
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.roomTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: Colors.white,
+            child: GestureDetector(
+              onTap: _showOfficialRoomsPicker,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        _activeRoomTitle,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_drop_down, color: Color(0xFFFFD700), size: 18),
+                    ],
                   ),
-                ),
-                Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Colors.greenAccent,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'LiveKit HD • 30 مقعداً',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  Text(
+                    '$_activeMicCount مقاعد • LiveKit Token 200 نقي 🎙️',
+                    style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 10),
+                  ),
+                ],
+              ),
             ),
           ),
 
-          // كبسولة رصيد الكوينز المتصلة بـ Supabase
+          // رصيد الكوينز المتصل بـ Supabase
           GestureDetector(
             onTap: () {
               gamesService.addBonusCoins(5000);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('تمت إضافة هدية كوينز ملكية إلى حسابك (+5,000 كوين) 🪙'),
+                  content: Text('تمت إضافة +5,000 كوين ملكية لحسابك 🪙'),
                   backgroundColor: Color(0xFF7C3AED),
                 ),
               );
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF28114B), Color(0xFF1A0A33)],
-                ),
-                borderRadius: BorderRadius.circular(20),
+                gradient: const LinearGradient(colors: [Color(0xFF28114B), Color(0xFF170933)]),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: const Color(0xFFFFD700), width: 1.2),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('🪙', style: TextStyle(fontSize: 13)),
+                  const Text('🪙', style: TextStyle(fontSize: 12)),
                   const SizedBox(width: 4),
                   Text(
                     gamesService.userCoins.toString().replaceAllMapped(
                           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
                           (Match m) => '${m[1]},',
                         ),
-                    style: const TextStyle(
-                      color: Color(0xFFFFD700),
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'monospace',
-                    ),
+                    style: const TextStyle(color: Color(0xFFFFD700), fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
 
-          // زر إدارة الوكالة
+          // زر الوكالات
           IconButton(
-            icon: const Icon(Icons.shield_outlined, color: Color(0xFFFFD700), size: 22),
+            icon: const Icon(Icons.shield_outlined, color: Color(0xFFFFD700), size: 21),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
             tooltip: 'إدارة الوكالة والمشرفين',
             onPressed: () => showModalBottomSheet(
               context: context,
@@ -311,11 +449,11 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
     );
   }
 
-  /// شريط التبديل بين وضع المجلس ووضع السينما
-  Widget _buildModeSwitcher() {
+  /// شريط حالة الروم: اختيار عدد المايكات وتفعيل وضع السينما
+  Widget _buildRoomStatusSubBar() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      padding: const EdgeInsets.all(3),
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFF140A30),
         borderRadius: BorderRadius.circular(16),
@@ -323,61 +461,59 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _isCinemaMode = false),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                decoration: BoxDecoration(
-                  gradient: !_isCinemaMode
-                      ? const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFEAB308)])
-                      : null,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.groups_rounded, size: 16, color: !_isCinemaMode ? Colors.black : Colors.white60),
-                    const SizedBox(width: 6),
-                    Text(
-                      'مجلس 30 مقعداً',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: !_isCinemaMode ? Colors.black : Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
+          // زر عدد المايكات
+          GestureDetector(
+            onTap: _showMicCountSelector,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.4)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.mic, color: Color(0xFFFFD700), size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$_activeMicCount مايكات',
+                    style: const TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 11),
+                  ),
+                  const Icon(Icons.keyboard_arrow_down, color: Color(0xFFFFD700), size: 14),
+                ],
               ),
             ),
           ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _isCinemaMode = true),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                decoration: BoxDecoration(
-                  gradient: _isCinemaMode
-                      ? const LinearGradient(colors: [Color(0xFF9333EA), Color(0xFFC084FC)])
-                      : null,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.movie_filter_rounded, size: 16, color: _isCinemaMode ? Colors.white : Colors.white60),
-                    const SizedBox(width: 6),
-                    Text(
-                      'سينما وعرش CP',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: _isCinemaMode ? Colors.white : Colors.white70,
-                      ),
+          const Spacer(),
+
+          // زر وضع السينما
+          GestureDetector(
+            onTap: () => setState(() => _isCinemaMode = !_isCinemaMode),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: _isCinemaMode ? Colors.purple.withOpacity(0.3) : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _isCinemaMode ? Colors.purpleAccent : Colors.white24),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _isCinemaMode ? Icons.movie : Icons.movie_outlined,
+                    color: _isCinemaMode ? Colors.purpleAccent : Colors.white70,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _isCinemaMode ? 'وضع السينما نشط 🎬' : 'شاشة السينما',
+                    style: TextStyle(
+                      color: _isCinemaMode ? Colors.purpleAccent : Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -386,133 +522,212 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
     );
   }
 
-  /// عرش مالك الغرفة الملكي (#1)
-  Widget _buildThroneCard() {
+  /// شاشة عرض السينما العلوية
+  Widget _buildCinemaPlayer() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      height: 160,
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF2E1756).withOpacity(0.8),
-            const Color(0xFF170933).withOpacity(0.8),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
+        gradient: const RadialGradient(
+          colors: [Color(0xFF331661), Color(0xFF0F061F)],
+          radius: 1.2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.amber.withOpacity(0.2),
-            blurRadius: 16,
-            spreadRadius: 1,
+            color: Colors.purple.withOpacity(0.3),
+            blurRadius: 18,
           ),
         ],
       ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFD700), Color(0xFFEAB308)],
-              ),
-              borderRadius: BorderRadius.circular(12),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.live_tv_rounded, size: 44, color: Color(0xFFFFD700)),
+            const SizedBox(height: 6),
+            const Text(
+              'شاشة البث والسينما الملكية 🎬',
+              style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 14),
             ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.military_tech_rounded, size: 14, color: Colors.black),
-                SizedBox(width: 4),
-                Text(
-                  'عرش مالك الغرفة الإمبراطوري',
-                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 11),
-                ),
-              ],
+            Text(
+              'مشاهدة المقاطع والأفلام مع المايكات بالأسفل',
+              style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 10),
             ),
-          ),
-          const SizedBox(height: 10),
-          SeatItemWidget(
-            seat: seats[0],
-            isThrone: true,
-            onTap: () => _handleSeatClick(0),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  /// مقاعد النواب ومجلس الإدارة (#2 إلى #6)
-  Widget _buildVipRow() {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF140A30).withOpacity(0.6),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF9333EA).withOpacity(0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            child: Row(
-              children: [
-                Icon(Icons.star_rounded, color: Color(0xFFC084FC), size: 14),
-                SizedBox(width: 4),
-                Text(
-                  'مقاعد النواب ومجلس الإدارة (#2 - #6)',
-                  style: TextStyle(
-                    color: Color(0xFFC084FC),
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+  /// بناء شبكة المايكات الديناميكية المتكيفة بدقة (2 إلى 30 مقعداً)
+  Widget _buildDynamicMicGrid() {
+    final activeSeats = seats.take(_activeMicCount).toList();
+
+    // 1. وضع مايكين (2 Mics Dueling / CP Battle)
+    if (_activeMicCount == 2) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            SeatItemWidget(
+              seat: activeSeats[0],
+              isThrone: true,
+              customSize: 80,
+              onTap: () => _handleMicSlotClick(activeSeats[0]),
             ),
+            const Text('VS', style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.w900, fontSize: 24)),
+            SeatItemWidget(
+              seat: activeSeats[1],
+              isThrone: false,
+              customSize: 80,
+              onTap: () => _handleMicSlotClick(activeSeats[1]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 2. وضع 4 أو 6 مايكات
+    if (_activeMicCount <= 6) {
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: _activeMicCount == 4 ? 2 : 3,
+          childAspectRatio: 0.9,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+        ),
+        itemCount: activeSeats.length,
+        itemBuilder: (context, i) {
+          return SeatItemWidget(
+            seat: activeSeats[i],
+            isThrone: i == 0,
+            customSize: 62,
+            onTap: () => _handleMicSlotClick(activeSeats[i]),
+          );
+        },
+      );
+    }
+
+    // 3. وضع 8 أو 10 مايكات
+    if (_activeMicCount <= 10) {
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 5,
+          childAspectRatio: 0.82,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 10,
+        ),
+        itemCount: activeSeats.length,
+        itemBuilder: (context, i) {
+          return SeatItemWidget(
+            seat: activeSeats[i],
+            isThrone: i == 0,
+            customSize: 48,
+            onTap: () => _handleMicSlotClick(activeSeats[i]),
+          );
+        },
+      );
+    }
+
+    // 4. وضع 15 أو 20 مايكاً
+    if (_activeMicCount <= 20) {
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 5,
+          childAspectRatio: 0.8,
+          crossAxisSpacing: 6,
+          mainAxisSpacing: 8,
+        ),
+        itemCount: activeSeats.length,
+        itemBuilder: (context, i) {
+          return SeatItemWidget(
+            seat: activeSeats[i],
+            isThrone: i == 0,
+            customSize: 42,
+            onTap: () => _handleMicSlotClick(activeSeats[i]),
+          );
+        },
+      );
+    }
+
+    // 5. وضع الـ 30 مقعداً الإمبراطوري (عرش + 5 نواب + 24 ضيفاً)
+    return Column(
+      children: [
+        // عرش مالك الغرفة الملكي (#1)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [const Color(0xFF2E1756).withOpacity(0.8), const Color(0xFF170933).withOpacity(0.8)],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
           ),
-          const SizedBox(height: 4),
-          Row(
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFEAB308)]),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text('عرش صاحب المجلس الإمبراطوري 👑', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 10)),
+              ),
+              const SizedBox(height: 8),
+              SeatItemWidget(
+                seat: activeSeats[0],
+                isThrone: true,
+                onTap: () => _handleMicSlotClick(activeSeats[0]),
+              ),
+            ],
+          ),
+        ),
+
+        // مقاعد كبار الشخصيات والنواب (المقاعد 2 إلى 6)
+        Container(
+          padding: const EdgeInsets.all(8),
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF140A30).withOpacity(0.6),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF9333EA).withOpacity(0.3)),
+          ),
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(5, (i) {
-              final seatIdx = i + 1;
+              final seat = activeSeats[i + 1];
               return Expanded(
                 child: SeatItemWidget(
-                  seat: seats[seatIdx],
-                  onTap: () => _handleSeatClick(seatIdx),
+                  seat: seat,
+                  customSize: 42,
+                  onTap: () => _handleMicSlotClick(seat),
                 ),
               );
             }),
           ),
-        ],
-      ),
-    );
-  }
+        ),
 
-  /// شبكة مقاعد الضيوف الـ 24 (#7 إلى #30) بتوزيع مريح ومثالي
-  Widget _buildGuestGrid() {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F0724).withOpacity(0.5),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            child: Text(
-              'مقاعد الضيوف الملكية (#7 - #30)',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+        // مقاعد الضيوف الـ 24 (المقاعد 7 إلى 30)
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F0724).withOpacity(0.5),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white12),
           ),
-          const SizedBox(height: 6),
-          GridView.builder(
+          child: GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -523,199 +738,172 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
             ),
             itemCount: 24,
             itemBuilder: (context, i) {
-              final seatIdx = i + 6;
+              final seat = activeSeats[i + 6];
               return SeatItemWidget(
-                seat: seats[seatIdx],
-                onTap: () => _handleSeatClick(seatIdx),
+                seat: seat,
+                customSize: 36,
+                onTap: () => _handleMicSlotClick(seat),
               );
             },
           ),
-        ],
-      ),
-    );
-  }
-
-  /// قسم السينما وعرش الحب CP
-  Widget _buildCinemaSection() {
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          height: 180,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.amber, width: 2),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF28114B), Color(0xFF0D061A)],
-            ),
-          ),
-          child: const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.live_tv_rounded, size: 48, color: Colors.amber),
-                SizedBox(height: 8),
-                Text(
-                  'شاشة العرض السينمائية 🎬',
-                  style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                Text(
-                  'بث سينمائي نقي مع مكبرات صوت محيطية',
-                  style: TextStyle(color: Colors.white60, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        // مقاعد السينما العشرة
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 5,
-            childAspectRatio: 0.85,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-          ),
-          itemCount: 10,
-          itemBuilder: (context, i) {
-            return SeatItemWidget(
-              seat: seats[i],
-              onTap: () => _handleSeatClick(i),
-            );
-          },
         ),
       ],
     );
   }
 
-  /// الشريط العائم السفلي المنسق باحترافية وبدون أي تداخل
-  Widget _buildFloatingDock(LiveKitService liveKit, SupabaseGamesService gamesService) {
+  /// الشريط السفلي الأفقي المرتب تماماً بالترتيب الإلزامي من اليسار إلى اليمين:
+  /// 1. Room Settings (4-squares)
+  /// 2. Games Panel (Gamepad)
+  /// 3. Gift Box Shop (Center, slightly larger)
+  /// 4. Room Public Text Chat (Bubble)
+  /// 5. Private Inbox DMs (Envelope)
+  Widget _buildStrictHorizontalBottomBar(LiveKitService liveKit) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      height: 72,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F0624),
+        color: const Color(0xFF0D0621),
         border: const Border(
           top: BorderSide(color: Color(0x33FFD700), width: 1.2),
         ),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.5),
-            blurRadius: 16,
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.6), blurRadius: 16),
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 1. زر الميكروفون
+          // 1. Room Settings (أربعة مربعات 🎛️)
+          _buildBottomActionItem(
+            icon: Icons.grid_view_rounded,
+            label: 'الإعدادات',
+            color: const Color(0xFFFFD700),
+            onTap: _showRoomSettingsSheet,
+          ),
+
+          // 2. Games Panel (ذراع تحكم الألعاب 🎮)
+          _buildBottomActionItem(
+            icon: Icons.sports_esports_rounded,
+            label: 'الألعاب',
+            color: Colors.amberAccent,
+            onTap: () => showDialog(
+              context: context,
+              builder: (_) => const OfficialGamesHubDialog(),
+            ),
+          ),
+
+          // 3. Gift Box Shop (في المنتصف وأكبر حجماً مع تأثير الذهب 🎁)
           GestureDetector(
-            onTap: () => liveKit.toggleMicrophone(),
+            onTap: _showGiftShopModal,
             child: Container(
-              padding: const EdgeInsets.all(12),
+              width: 58,
+              height: 58,
+              margin: const EdgeInsets.only(bottom: 6),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: liveKit.isMicMuted ? Colors.red.withOpacity(0.2) : Colors.green.withOpacity(0.2),
-                border: Border.all(
-                  color: liveKit.isMicMuted ? Colors.redAccent : Colors.greenAccent,
-                  width: 1.5,
+                gradient: const RadialGradient(
+                  colors: [Color(0xFFFFD700), Color(0xFFFFA500), Color(0xFF7C3AED)],
+                  radius: 0.9,
                 ),
-              ),
-              child: Icon(
-                liveKit.isMicMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                color: liveKit.isMicMuted ? Colors.redAccent : Colors.greenAccent,
-                size: 22,
-              ),
-            ),
-          ),
-
-          // 2. زر صالة الألعاب الرسمية السبعة (المتصلة بـ Supabase)
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFD700),
-              foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              elevation: 6,
-            ),
-            icon: const Icon(Icons.casino_rounded, size: 20),
-            label: const Text(
-              'صالة الألعاب (7 ألعاب) 🐯',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-            ),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (_) => const OfficialGamesHubDialog(),
-              );
-            },
-          ),
-
-          // 3. زر تجربة دخول الـ SVIP
-          IconButton(
-            icon: const Icon(Icons.auto_awesome, color: Color(0xFFFFD700), size: 24),
-            tooltip: 'دخول SVIP 9 الملكي',
-            onPressed: () => _triggerSvipBanner(9),
-          ),
-
-          // 4. زر صندوق الهدايا
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF9333EA), Color(0xFFC084FC)],
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: GestureDetector(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('صندوق الهدايا الملكية: الأسد الذهبي، الصقر الأسود، وألسنة اللهب ✨'),
-                    backgroundColor: Color(0xFF9333EA),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFFFD700), width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFFD700).withOpacity(0.45),
+                    blurRadius: 14,
+                    spreadRadius: 2,
                   ),
-                );
-              },
-              child: const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 20),
+                ],
+              ),
+              child: const Icon(Icons.card_giftcard_rounded, color: Colors.black, size: 28),
             ),
+          ),
+
+          // 4. Room Public Text Chat (فقاعة الدردشة العامة 💬)
+          _buildBottomActionItem(
+            icon: Icons.chat_bubble_rounded,
+            label: 'الدردشة',
+            color: Colors.lightBlueAccent,
+            onTap: _showPublicChatSheet,
+          ),
+
+          // 5. Private Inbox DMs (الرسائل الخاصة ✉️)
+          _buildBottomActionItem(
+            icon: Icons.mark_email_unread_rounded,
+            label: 'الخاص',
+            color: Colors.pinkAccent,
+            onTap: _showPrivateDmsSheet,
           ),
         ],
       ),
     );
   }
 
-  void _handleSeatClick(int index) {
+  Widget _buildBottomActionItem({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: color.withOpacity(0.35)),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(color: color, fontSize: 9.5, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  /// القائمة السفلية للتحكم بالمايك عند النقر عليه (Mute, Kick Out, Invite, Lock)
+  void _handleMicSlotClick(SeatData seat) {
+    final liveKit = Provider.of<LiveKitService>(context, listen: false);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF170B36),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) {
-        final seat = seats[index];
         return Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'إدارة المقعد رقم ${index + 1}',
+                'تحكم المايك رقم ${seat.seatIndex + 1}',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFFFD700)),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+
               if (seat.isOccupied) ...[
+                // 1. كتم / إلغاء كتم الصوت (Mute)
                 ListTile(
-                  leading: const Icon(Icons.mic_off, color: Colors.redAccent),
-                  title: const Text('كتم صوت العضو', style: TextStyle(color: Colors.white)),
+                  leading: Icon(seat.isMuted ? Icons.mic : Icons.mic_off, color: seat.isMuted ? Colors.greenAccent : Colors.redAccent),
+                  title: Text(seat.isMuted ? 'إلغاء كتم الصوت (Unmute)' : 'كتم المايك (Mute)', style: const TextStyle(color: Colors.white)),
                   onTap: () {
                     setState(() => seat.isMuted = !seat.isMuted);
+                    if (seat.seatIndex == mySeatIndex) {
+                      liveKit.toggleMicrophone();
+                    }
                     Navigator.pop(context);
                   },
                 ),
+                // 2. إنزال العضو من المقعد (Kick Out)
                 ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.orangeAccent),
-                  title: const Text('إنزال العضو من المقعد', style: TextStyle(color: Colors.white)),
+                  leading: const Icon(Icons.person_remove_rounded, color: Colors.orangeAccent),
+                  title: const Text('إنزال العضو من المقعد (Kick Out)', style: TextStyle(color: Colors.white)),
                   onTap: () {
                     setState(() {
                       seat.isOccupied = false;
@@ -726,27 +914,461 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
                   },
                 ),
               ] else ...[
+                // الجلوس على المايك
                 ListTile(
-                  leading: const Icon(Icons.airline_seat_recline_normal, color: Colors.greenAccent),
-                  title: const Text('الجلوس على هذا المقعد', style: TextStyle(color: Colors.white)),
+                  leading: const Icon(Icons.mic, color: Colors.greenAccent),
+                  title: const Text('الجلوس والصعود على هذا المايك', style: TextStyle(color: Colors.white)),
                   onTap: () {
                     setState(() {
                       seat.isOccupied = true;
                       seat.userName = 'سلطان العرب 👑';
                       seat.avatarUrl = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+                      seat.isMuted = false;
+                      mySeatIndex = seat.seatIndex;
                     });
-                    Navigator.pop(context);
-                  },
-                ),
-                ListTile(
-                  leading: Icon(seat.isLocked ? Icons.lock_open : Icons.lock, color: Colors.amber),
-                  title: Text(seat.isLocked ? 'فتح قفل المقعد' : 'قفل المقعد', style: const TextStyle(color: Colors.white)),
-                  onTap: () {
-                    setState(() => seat.isLocked = !seat.isLocked);
+                    liveKit.toggleMicrophone();
                     Navigator.pop(context);
                   },
                 ),
               ],
+
+              // 3. دعوة عضو للمقعد (Invite)
+              ListTile(
+                leading: const Icon(Icons.person_add_alt_1_rounded, color: Colors.lightBlueAccent),
+                title: const Text('دعوة عضو للمقعد (Invite)', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('تم إرسال دعوة ملكية للصعود إلى المايك ${seat.seatIndex + 1} 📩')),
+                  );
+                },
+              ),
+
+              // 4. قفل / فتح المقعد (Lock)
+              ListTile(
+                leading: Icon(seat.isLocked ? Icons.lock_open_rounded : Icons.lock_rounded, color: Colors.amber),
+                title: Text(seat.isLocked ? 'فتح قفل المقعد (Unlock)' : 'قفل المقعد (Lock)', style: const TextStyle(color: Colors.white)),
+                onTap: () {
+                  setState(() => seat.isLocked = !seat.isLocked);
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// نافذة إعدادات الغرفة واختيار سعة المايكات (Room Settings)
+  void _showRoomSettingsSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF14082E),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.grid_view_rounded, color: Color(0xFFFFD700)),
+                  SizedBox(width: 8),
+                  Text('إعدادات المجلس الملكي وسعة المايكات', style: TextStyle(color: Color(0xFFFFD700), fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              const Text('اختر عدد المايكات المتاحة للروم:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _supportedMicCounts.map((count) {
+                  final isSelected = _activeMicCount == count;
+                  return ChoiceChip(
+                    label: Text('$count مايكات'),
+                    selected: isSelected,
+                    selectedColor: const Color(0xFFFFD700),
+                    backgroundColor: const Color(0xFF261247),
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.black : Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                    onSelected: (val) {
+                      if (val) {
+                        setState(() => _activeMicCount = count);
+                        Navigator.pop(context);
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+              const Divider(color: Colors.white12, height: 28),
+
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.movie_filter_rounded, color: Colors.purpleAccent),
+                title: const Text('تفعيل / إيقاف وضع السينما', style: TextStyle(color: Colors.white)),
+                trailing: Switch(
+                  value: _isCinemaMode,
+                  activeColor: const Color(0xFFFFD700),
+                  onChanged: (val) {
+                    setState(() => _isCinemaMode = val);
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// نافذة اختيار عدد المايكات السريعة
+  void _showMicCountSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF14082E),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('تغيير سعة المايكات الفورية 🎙️', style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _supportedMicCounts.map((count) {
+                  final isSel = _activeMicCount == count;
+                  return ChoiceChip(
+                    label: Text('$count'),
+                    selected: isSel,
+                    selectedColor: const Color(0xFFFFD700),
+                    backgroundColor: const Color(0xFF200F3E),
+                    labelStyle: TextStyle(color: isSel ? Colors.black : Colors.white, fontWeight: FontWeight.w900),
+                    onSelected: (val) {
+                      if (val) {
+                        setState(() => _activeMicCount = count);
+                        Navigator.pop(context);
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// اختيار الرومين الرسميين: غرفة خدمة العملاء الرسمية vs روم الإدارة
+  void _showOfficialRoomsPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF14082E),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('الغرفتان الرسميتان المعتمدتان 👑', style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.w900, fontSize: 16)),
+              const SizedBox(height: 14),
+
+              // 1. غرفة خدمة العملاء الرسمية
+              Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  color: _activeRoomId == 'customer_service_room' ? const Color(0xFFFFD700).withOpacity(0.15) : const Color(0xFF221040),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _activeRoomId == 'customer_service_room' ? const Color(0xFFFFD700) : Colors.white12),
+                ),
+                child: ListTile(
+                  leading: const Text('🎧', style: TextStyle(fontSize: 26)),
+                  title: const Text('غرفة خدمة العملاء الرسمية', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('الدعم الفني، الشكاوى، والمساعدة المباشرة', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                  trailing: _activeRoomId == 'customer_service_room' ? const Icon(Icons.check_circle, color: Color(0xFFFFD700)) : null,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _switchOfficialRoom('customer_service_room', 'غرفة خدمة العملاء الرسمية 👑');
+                  },
+                ),
+              ),
+
+              // 2. روم الإدارة
+              Container(
+                decoration: BoxDecoration(
+                  color: _activeRoomId == 'management_room' ? const Color(0xFFFFD700).withOpacity(0.15) : const Color(0xFF221040),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _activeRoomId == 'management_room' ? const Color(0xFFFFD700) : Colors.white12),
+                ),
+                child: ListTile(
+                  leading: const Text('🛡️', style: TextStyle(fontSize: 26)),
+                  title: const Text('روم الإدارة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('مجلس الإدارة العليا، تفويض الوكالات والمشرفين', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                  trailing: _activeRoomId == 'management_room' ? const Icon(Icons.check_circle, color: Color(0xFFFFD700)) : null,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _switchOfficialRoom('management_room', 'روم الإدارة 🛡️');
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// متجر وصندوق الهدايا الملكي مع زر إطلاق الصاروخ 🚀
+  void _showGiftShopModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF14082E),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.card_giftcard_rounded, color: Color(0xFFFFD700)),
+                  SizedBox(width: 8),
+                  Text('صندوق الهدايا الإمبراطوري 🎁', style: TextStyle(color: Color(0xFFFFD700), fontSize: 16, fontWeight: FontWeight.w900)),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  // صاروخ الإطلاق الملكي
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _triggerRocketLaunch();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Color(0xFF3B1578), Color(0xFF1F0945)]),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
+                      ),
+                      child: const Column(
+                        children: [
+                          Text('🚀', style: TextStyle(fontSize: 34)),
+                          SizedBox(height: 4),
+                          Text('صاروخ الإطلاق', style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 11)),
+                          Text('1,000 كوين', style: TextStyle(color: Colors.white54, fontSize: 9)),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // الصقر الأسود SVIP 9
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _triggerSvipBanner(9);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Color(0xFF3B1578), Color(0xFF1F0945)]),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.amber, width: 1),
+                      ),
+                      child: const Column(
+                        children: [
+                          Text('🦅', style: TextStyle(fontSize: 34)),
+                          SizedBox(height: 4),
+                          Text('صقر SVIP 9', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 11)),
+                          Text('5,000 كوين', style: TextStyle(color: Colors.white54, fontSize: 9)),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // التنين الكوني
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _triggerSvipBanner(7);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Color(0xFF3B1578), Color(0xFF1F0945)]),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.purpleAccent, width: 1),
+                      ),
+                      child: const Column(
+                        children: [
+                          Text('🐉', style: TextStyle(fontSize: 34)),
+                          SizedBox(height: 4),
+                          Text('تنين الحظ', style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold, fontSize: 11)),
+                          Text('2,500 كوين', style: TextStyle(color: Colors.white54, fontSize: 9)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// نافذة المحادثة العامة (Room Public Text Chat)
+  void _showPublicChatSheet() {
+    final textController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF14082E),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+            left: 16,
+            right: 16,
+            top: 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.chat_bubble_rounded, color: Colors.lightBlueAccent),
+                  SizedBox(width: 8),
+                  Text('دردشة المجلس العامة 💬', style: TextStyle(color: Colors.lightBlueAccent, fontWeight: FontWeight.bold, fontSize: 15)),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // قائمة الرسائل
+              SizedBox(
+                height: 180,
+                child: ListView.builder(
+                  itemCount: _messages.length,
+                  itemBuilder: (context, i) {
+                    final msg = _messages[i];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${msg.sender}: ', style: const TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 12)),
+                          Expanded(
+                            child: Text(msg.text, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              // حقل الإرسال
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: textController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: const Color(0xFF221142),
+                        hintText: 'اكتب رسالة عامة للمجلس...',
+                        hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.send_rounded, color: Color(0xFFFFD700)),
+                    onPressed: () {
+                      final txt = textController.text.trim();
+                      if (txt.isNotEmpty) {
+                        setState(() {
+                          _messages.add(ChatMessage(
+                            sender: 'سلطان العرب 👑',
+                            text: txt,
+                            svipLevel: 9,
+                            time: DateTime.now(),
+                          ));
+                        });
+                        Navigator.pop(context);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// نافذة الرسائل الخاصة (Private Inbox DMs)
+  void _showPrivateDmsSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF14082E),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.mark_email_unread_rounded, color: Colors.pinkAccent),
+                  SizedBox(width: 8),
+                  Text('صندوق الرسائل الخاصة (Inbox DMs) ✉️', style: TextStyle(color: Colors.pinkAccent, fontWeight: FontWeight.bold, fontSize: 15)),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundImage: NetworkImage('https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150'),
+                ),
+                title: const Text('الأميرة نور 🌸', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text('شكراً جزيلاً لك على دعمك الكريم في المجلس! ❤️', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                trailing: const Text('منذ 10 د', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                onTap: () => Navigator.pop(context),
+              ),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundImage: NetworkImage('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150'),
+                ),
+                title: const Text('مدير المجلس 🛡️', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text('تم توثيق رتبة وكالتك في نظام Supabase بنجاح.', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                trailing: const Text('منذ 25 د', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                onTap: () => Navigator.pop(context),
+              ),
             ],
           ),
         );
