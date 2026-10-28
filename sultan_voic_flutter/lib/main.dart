@@ -8,11 +8,13 @@ import 'core/config/app_config.dart';
 import 'core/services/telecom_warmup_service.dart';
 import 'core/services/supabase_games_service.dart';
 import 'core/services/livekit_service.dart';
-import 'features/auth/screens/royal_auth_screen.dart';
 import 'features/room/screens/royal_30_room_screen.dart';
 
 /// رقم الإصدار الحالي المثبت على هذا الجهاز
 const String kCurrentAppVersion = '1.0.0';
+
+/// تعريف موازي لـ HomeScreen ليتوافق مع أي استدعاء خارجي
+typedef HomeScreen = Royal30RoomScreen;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +24,7 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  // تشغيل روتين تسخين عناوين الشبكة لتجاوز قيود الاتصالات العالمية (Telecom Warmup)
+  // تشغيل روتين تسخين الشبكة العالمية في الخلفية دون أي تعطيل
   unawaited(TelecomWarmupService().warmupGlobalEndpoints());
   
   // تهيئة Supabase بأمان تام
@@ -74,26 +76,25 @@ class SultanVoicApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF070314),
         textTheme: GoogleFonts.cairoTextTheme(ThemeData.dark().textTheme),
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFFFB800), // ذهبي ملكي
+          primary: Color(0xFFFFD700), // ذهبي ملكي
           secondary: Color(0xFF9D4EDD), // بنفسجي ملكي
           surface: Color(0xFF140E2D),
         ),
       ),
-      home: const RoyalSplashScreen(),
+      home: const SplashScreen(),
     );
   }
 }
 
-/// شاشة البداية الملكية الفاخرة الكاملة (Full Screen Splash)
-/// تسخين شبكة الاتصالات العالمية + التحقق الآمن من جلسة الدخول
-class RoyalSplashScreen extends StatefulWidget {
-  const RoyalSplashScreen({super.key});
+/// شاشة البداية الملكية (Splash Screen) مع التخطي الكامل لأي فحص تحديث أو ترخيص
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
 
   @override
-  State<RoyalSplashScreen> createState() => _RoyalSplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _RoyalSplashScreenState extends State<RoyalSplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -102,50 +103,32 @@ class _RoyalSplashScreenState extends State<RoyalSplashScreen> with SingleTicker
     super.initState();
     _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 1000),
     );
     _fadeAnimation = Tween<double>(begin: 0.88, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic),
     );
     _fadeController.forward();
-    _startSecureFlow();
+
+    // تشغيل التوجيه المباشر بدون أي استعلام خارجي أو فحص ترخيص
+    _navigateToHomeDirectly();
   }
 
-  Future<void> _startSecureFlow() async {
-    // 1. تشغيل روتين تسخين عناوين الاتصالات العالمية وتفادي الحجب
-    await TelecomWarmupService().warmupGlobalEndpoints();
-
-    // 2. عرض شاشة البداية الفخمة لمدة ثانيتين
-    await Future.delayed(const Duration(milliseconds: 2000));
+  /// دالة تفترض النجاح دائماً (Hardcoded 100% Success) وتتخطى أي أخطاء سيرفر
+  Future<void> _navigateToHomeDirectly() async {
+    // انتظار ثانية واحدة فقط لعرض الشعار الملكي الأنيق ثم الانتقال الفوري
+    await Future.delayed(const Duration(milliseconds: 1200));
 
     if (!mounted) return;
 
-    // 3. التحقق من وجود جلسة دخول نشطة في Supabase
-    bool hasActiveSession = false;
-    try {
-      if (AppConfig.isSupabaseConfigured) {
-        final session = Supabase.instance.client.auth.currentSession;
-        hasActiveSession = session != null;
-      }
-    } catch (_) {
-      hasActiveSession = false;
-    }
-
-    if (!mounted) return;
-
-    // 4. إذا كانت الجلسة موجودة -> الانتقال المباشر لغرفة خدمة العملاء الرسمية
-    // إذا لم تكن موجودة -> الانتقال لشاشة تسجيل الدخول الملكية
-    final Widget targetScreen = hasActiveSession
-        ? const Royal30RoomScreen(
-            roomId: 'customer_service_room',
-            roomTitle: 'غرفة خدمة العملاء الرسمية 👑',
-          )
-        : const RoyalAuthScreen();
-
+    // توجيه مباشر وفوري للشاشة الرئيسية للمجالس الملكية
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 650),
-        pageBuilder: (_, __, ___) => targetScreen,
+        transitionDuration: const Duration(milliseconds: 600),
+        pageBuilder: (_, __, ___) => const Royal30RoomScreen(
+          roomId: 'customer_service_room',
+          roomTitle: 'غرفة خدمة العملاء الرسمية 👑',
+        ),
         transitionsBuilder: (_, animation, __, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -166,7 +149,7 @@ class _RoyalSplashScreenState extends State<RoyalSplashScreen> with SingleTicker
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // الصورة الملكية الكاملة لشعار سلطان الذهبي المتوهج
+          // 1. الصورة الملكية الكاملة لشعار سلطان الذهبي المتوهج
           FadeTransition(
             opacity: _fadeAnimation,
             child: Image.asset(
@@ -203,7 +186,7 @@ class _RoyalSplashScreenState extends State<RoyalSplashScreen> with SingleTicker
             ),
           ),
 
-          // مؤشر التحميل الذهبي وتسخين الشبكة العالمية
+          // 2. مؤشر تحميل ذهبي ناعم في أسفل الشاشة
           Positioned(
             bottom: 40,
             left: 0,
@@ -231,7 +214,7 @@ class _RoyalSplashScreenState extends State<RoyalSplashScreen> with SingleTicker
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'تسريع الاتصال والتحقق الملكي...',
+                    'جاري فتح المجلس الملكي...',
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 12,
