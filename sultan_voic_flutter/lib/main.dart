@@ -5,8 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/app_config.dart';
+import 'core/services/telecom_warmup_service.dart';
 import 'core/services/supabase_games_service.dart';
 import 'core/services/livekit_service.dart';
+import 'features/auth/screens/royal_auth_screen.dart';
 import 'features/room/screens/royal_30_room_screen.dart';
 
 /// رقم الإصدار الحالي المثبت على هذا الجهاز
@@ -19,6 +21,9 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
+
+  // تشغيل روتين تسخين عناوين الشبكة لتجاوز قيود الاتصالات العالمية (Telecom Warmup)
+  unawaited(TelecomWarmupService().warmupGlobalEndpoints());
   
   // تهيئة Supabase بأمان تام
   if (AppConfig.isSupabaseConfigured) {
@@ -44,13 +49,15 @@ Future<void> main() async {
   );
 }
 
+void unawaited(Future<void> future) {}
+
 class SultanVoicApp extends StatelessWidget {
   const SultanVoicApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Sultan Voic - غرف 30 مقعد ملكية',
+      title: 'Sultan Voic - غرف صوتية ملكية',
       debugShowCheckedModeBanner: false,
       locale: const Locale('ar', 'SA'),
       supportedLocales: const [
@@ -78,7 +85,7 @@ class SultanVoicApp extends StatelessWidget {
 }
 
 /// شاشة البداية الملكية الفاخرة الكاملة (Full Screen Splash)
-/// تعرض صورة شعار سلطان الذهبي مع التاج والخلفية المتدرجة لتملأ الشاشة بالكامل
+/// تسخين شبكة الاتصالات العالمية + التحقق الآمن من جلسة الدخول
 class RoyalSplashScreen extends StatefulWidget {
   const RoyalSplashScreen({super.key});
 
@@ -101,26 +108,49 @@ class _RoyalSplashScreenState extends State<RoyalSplashScreen> with SingleTicker
       CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic),
     );
     _fadeController.forward();
-    _navigateToHome();
+    _startSecureFlow();
   }
 
-  Future<void> _navigateToHome() async {
-    // عرض شاشة البداية الملكية الكاملة لمدة 2.4 ثانية ثم الانتقال بسلاسة
-    await Future.delayed(const Duration(milliseconds: 2400));
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 700),
-          pageBuilder: (_, __, ___) => const Royal30RoomScreen(
-            roomId: 'sultan_royal_room_1',
-            roomTitle: 'مجلس Sultan Voic الملكي 👑',
-          ),
-          transitionsBuilder: (_, animation, __, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
+  Future<void> _startSecureFlow() async {
+    // 1. تشغيل روتين تسخين عناوين الاتصالات العالمية وتفادي الحجب
+    await TelecomWarmupService().warmupGlobalEndpoints();
+
+    // 2. عرض شاشة البداية الفخمة لمدة ثانيتين
+    await Future.delayed(const Duration(milliseconds: 2000));
+
+    if (!mounted) return;
+
+    // 3. التحقق من وجود جلسة دخول نشطة في Supabase
+    bool hasActiveSession = false;
+    try {
+      if (AppConfig.isSupabaseConfigured) {
+        final session = Supabase.instance.client.auth.currentSession;
+        hasActiveSession = session != null;
+      }
+    } catch (_) {
+      hasActiveSession = false;
     }
+
+    if (!mounted) return;
+
+    // 4. إذا كانت الجلسة موجودة -> الانتقال المباشر لغرفة خدمة العملاء الرسمية
+    // إذا لم تكن موجودة -> الانتقال لشاشة تسجيل الدخول الملكية
+    final Widget targetScreen = hasActiveSession
+        ? const Royal30RoomScreen(
+            roomId: 'customer_service_room',
+            roomTitle: 'غرفة خدمة العملاء الرسمية 👑',
+          )
+        : const RoyalAuthScreen();
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 650),
+        pageBuilder: (_, __, ___) => targetScreen,
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
   }
 
   @override
@@ -136,7 +166,7 @@ class _RoyalSplashScreenState extends State<RoyalSplashScreen> with SingleTicker
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. الصورة الملكية الكاملة المتدرجة مع شعار "سلطان" والتاج الذهبي تملأ الشاشة
+          // الصورة الملكية الكاملة لشعار سلطان الذهبي المتوهج
           FadeTransition(
             opacity: _fadeAnimation,
             child: Image.asset(
@@ -173,9 +203,9 @@ class _RoyalSplashScreenState extends State<RoyalSplashScreen> with SingleTicker
             ),
           ),
 
-          // 2. مؤشر تحميل ذهبي خفيف وأنيق في أسفل الشاشة
+          // مؤشر التحميل الذهبي وتسخين الشبكة العالمية
           Positioned(
-            bottom: 42,
+            bottom: 40,
             left: 0,
             right: 0,
             child: Center(
@@ -201,7 +231,7 @@ class _RoyalSplashScreenState extends State<RoyalSplashScreen> with SingleTicker
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'جاري فتح المجلس الملكي...',
+                    'تسريع الاتصال والتحقق الملكي...',
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 12,
