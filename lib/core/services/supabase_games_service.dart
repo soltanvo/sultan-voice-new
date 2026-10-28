@@ -48,6 +48,47 @@ class SupabaseGamesService extends ChangeNotifier {
     }
   }
 
+  /// معالجة نتيجة الرهان والفوز وحفظ التغيير مباشرة في Supabase
+  Future<bool> processGameBetAndWin({
+    required String gameName,
+    required int bet,
+    required int winAmount,
+    required int multiplier,
+  }) async {
+    if (_userCoins < bet) return false;
+
+    // 1. تحديث الرصيد محلياً فوراً لمنح تجربة لعب سلسة
+    _userCoins = (_userCoins - bet) + winAmount;
+    notifyListeners();
+
+    // 2. المزامنة مع سيرفر Supabase في الخلفية
+    if (AppConfig.isSupabaseConfigured) {
+      try {
+        final supabase = Supabase.instance.client;
+        final targetId = _userId ?? 'sultan_guest_1';
+
+        await supabase.from('profiles').update({
+          'coins': _userCoins,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', targetId);
+
+        try {
+          await supabase.from('game_logs').insert({
+            'user_id': targetId,
+            'game_type': gameName,
+            'bet_amount': bet,
+            'win_amount': winAmount,
+            'multiplier': multiplier,
+            'outcome': multiplier > 0 ? (multiplier >= 15 ? 'jackpot' : 'win') : 'loss',
+          });
+        } catch (_) {}
+      } catch (e) {
+        debugPrint('[SupabaseGamesService Notice]: $e');
+      }
+    }
+    return true;
+  }
+
   /// تنفيذ رهان ذري آمن تماماً عبر خادم Supabase (RPC execute_bet)
   /// محمي من التلاعب بالرصيد والسبام وتكرار النقر
   Future<Map<String, dynamic>> executeServerBet({
