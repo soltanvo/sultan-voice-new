@@ -8,12 +8,13 @@ import 'core/config/app_config.dart';
 import 'core/services/telecom_warmup_service.dart';
 import 'core/services/supabase_games_service.dart';
 import 'core/services/livekit_service.dart';
+import 'features/auth/screens/royal_auth_screen.dart';
 import 'features/room/screens/royal_30_room_screen.dart';
 
 /// رقم الإصدار الحالي المثبت على هذا الجهاز
 const String kCurrentAppVersion = '1.0.0';
 
-/// تعريف موازي لـ HomeScreen ليتوافق مع أي استدعاء خارجي
+/// تعريف مطابق لـ HomeScreen ليتوافق مع أي استدعاء خارجي
 typedef HomeScreen = Royal30RoomScreen;
 
 Future<void> main() async {
@@ -27,7 +28,7 @@ Future<void> main() async {
   // تشغيل روتين تسخين الشبكة العالمية في الخلفية دون أي تعطيل
   unawaited(TelecomWarmupService().warmupGlobalEndpoints());
   
-  // تهيئة Supabase بأمان تام
+  // تهيئة Supabase بأمان تام في الخلفية
   if (AppConfig.isSupabaseConfigured) {
     try {
       await Supabase.initialize(
@@ -86,7 +87,7 @@ class SultanVoicApp extends StatelessWidget {
   }
 }
 
-/// شاشة البداية الملكية (Splash Screen) مع التخطي الكامل لأي فحص تحديث أو ترخيص
+/// شاشة البداية الملكية (Splash Screen) مع التوجيه الصارم لحساب رسمي ومنع أي ضيف
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -110,25 +111,43 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
     _fadeController.forward();
 
-    // تشغيل التوجيه المباشر بدون أي استعلام خارجي أو فحص ترخيص
-    _navigateToHomeDirectly();
+    // تشغيل التوجيه الصارم: التحقق من وجود جلسة رسمية أو التوجه لشاشة تسجيل الدخول
+    _navigateToCheckAuth();
   }
 
-  /// دالة تفترض النجاح دائماً (Hardcoded 100% Success) وتتخطى أي أخطاء سيرفر
-  Future<void> _navigateToHomeDirectly() async {
-    // انتظار ثانية واحدة فقط لعرض الشعار الملكي الأنيق ثم الانتقال الفوري
+  /// التحقق من وجود جلسة رسمية مسجلة في Supabase Auth (منع الدخول بدون حساب)
+  Future<void> _navigateToCheckAuth() async {
+    // عرض شاشة البداية والشعار الملكي الفاخر لمدة 1.2 ثانية
     await Future.delayed(const Duration(milliseconds: 1200));
 
     if (!mounted) return;
 
-    // توجيه مباشر وفوري للشاشة الرئيسية للمجالس الملكية
+    // التحقق من وجود جلسة حساب رسمي مسجل مسبقاً
+    bool hasOfficialSession = false;
+    try {
+      if (AppConfig.isSupabaseConfigured) {
+        final session = Supabase.instance.client.auth.currentSession;
+        hasOfficialSession = session != null;
+      }
+    } catch (_) {
+      hasOfficialSession = false;
+    }
+
+    if (!mounted) return;
+
+    // إذا كان لديه حساب رسمي مسجل مسبقاً -> يدخل فوراً للغرفة الرسمية
+    // إذا لم يكن مسجلاً -> التوجه الإجباري لشاشة تسجيل الدخول (ممنوع دخول الزوار بدون حساب)
+    final Widget targetScreen = hasOfficialSession
+        ? const Royal30RoomScreen(
+            roomId: 'customer_service_room',
+            roomTitle: 'غرفة خدمة العملاء الرسمية 👑',
+          )
+        : const RoyalAuthScreen();
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 600),
-        pageBuilder: (_, __, ___) => const Royal30RoomScreen(
-          roomId: 'customer_service_room',
-          roomTitle: 'غرفة خدمة العملاء الرسمية 👑',
-        ),
+        pageBuilder: (_, __, ___) => targetScreen,
         transitionsBuilder: (_, animation, __, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -214,7 +233,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'جاري فتح المجلس الملكي...',
+                    'التحقق الرسمي وفتح المجلس...',
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 12,
