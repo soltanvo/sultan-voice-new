@@ -563,28 +563,31 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> with TickerProvid
     );
   }
 
-  /// بناء شبكة المايكات الديناميكية المتكيفة بدقة (2 إلى 30 مقعداً)
+  /// بناء شبكة المايكات الديناميكية المتكيفة بدقة هندسية صارمة
   Widget _buildDynamicMicGrid() {
     final activeSeats = seats.take(_activeMicCount).toList();
 
-    // 1. وضع مايكين (2 Mics Dueling / CP Battle)
+    // 1. وضع مايكين (2 Mics Dueling / CP Battle) - متطابقان جنباً إلى جنب
     if (_activeMicCount == 2) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
+        padding: const EdgeInsets.symmetric(vertical: 28),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             SeatItemWidget(
               seat: activeSeats[0],
               isThrone: true,
-              customSize: 80,
+              customSize: 76,
               onTap: () => _handleMicSlotClick(activeSeats[0]),
             ),
-            const Text('VS', style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.w900, fontSize: 24)),
+            const Text(
+              'VS',
+              style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.w900, fontSize: 26),
+            ),
             SeatItemWidget(
               seat: activeSeats[1],
               isThrone: false,
-              customSize: 80,
+              customSize: 76,
               onTap: () => _handleMicSlotClick(activeSeats[1]),
             ),
           ],
@@ -592,163 +595,214 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> with TickerProvid
       );
     }
 
-    // 2. وضع 4 أو 6 مايكات
-    if (_activeMicCount <= 6) {
-      return GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: _activeMicCount == 4 ? 2 : 3,
-          childAspectRatio: 0.9,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-        ),
-        itemCount: activeSeats.length,
-        itemBuilder: (context, i) {
-          return SeatItemWidget(
-            seat: activeSeats[i],
-            isThrone: i == 0,
-            customSize: 62,
-            onTap: () => _handleMicSlotClick(activeSeats[i]),
-          );
-        },
-      );
-    }
-
-    // 3. وضع 8 أو 10 مايكات
-    if (_activeMicCount <= 10) {
-      return GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 5,
-          childAspectRatio: 0.82,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 10,
-        ),
-        itemCount: activeSeats.length,
-        itemBuilder: (context, i) {
-          return SeatItemWidget(
-            seat: activeSeats[i],
-            isThrone: i == 0,
-            customSize: 48,
-            onTap: () => _handleMicSlotClick(activeSeats[i]),
-          );
-        },
-      );
-    }
-
-    // 4. وضع 15 أو 20 مايكاً
-    if (_activeMicCount <= 20) {
-      return GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 5,
-          childAspectRatio: 0.8,
-          crossAxisSpacing: 6,
-          mainAxisSpacing: 8,
-        ),
-        itemCount: activeSeats.length,
-        itemBuilder: (context, i) {
-          return SeatItemWidget(
-            seat: activeSeats[i],
-            isThrone: i == 0,
-            customSize: 42,
-            onTap: () => _handleMicSlotClick(activeSeats[i]),
-          );
-        },
-      );
-    }
-
-    // 5. وضع الـ 30 مقعداً الإمبراطوري (عرش + 5 نواب + 24 ضيفاً)
-    return Column(
-      children: [
-        // عرش مالك الغرفة الملكي (#1)
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-          margin: const EdgeInsets.only(bottom: 10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [const Color(0xFF2E1756).withOpacity(0.8), const Color(0xFF170933).withOpacity(0.8)],
-            ),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
+    // 2. وضع 4 مايكات (صفين متطابقين × عمودين = 4 متطابقة تماماً بدون مايك علوي)
+    if (_activeMicCount == 4) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 1.05,
+            crossAxisSpacing: 24,
+            mainAxisSpacing: 18,
           ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+          itemCount: 4,
+          itemBuilder: (context, i) {
+            return SeatItemWidget(
+              seat: activeSeats[i],
+              isThrone: i == 0,
+              customSize: 66,
+              onTap: () => _handleMicSlotClick(activeSeats[i]),
+            );
+          },
+        ),
+      );
+    }
+
+    // 3. وضع 6 مايكات (صفين متطابقين × 3 أعمدة = 6 متطابقة تماماً بدون مايك علوي)
+    if (_activeMicCount == 6) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: 0.95,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: 6,
+          itemBuilder: (context, i) {
+            return SeatItemWidget(
+              seat: activeSeats[i],
+              isThrone: i == 0,
+              customSize: 58,
+              onTap: () => _handleMicSlotClick(activeSeats[i]),
+            );
+          },
+        ),
+      );
+    }
+
+    // 4. وضع 8 مايكات (صفين متطابقين × 4 أعمدة = 8 متطابقة تماماً بدون مايك علوي)
+    if (_activeMicCount == 8) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        child: GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            childAspectRatio: 0.88,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: 8,
+          itemBuilder: (context, i) {
+            return SeatItemWidget(
+              seat: activeSeats[i],
+              isThrone: i == 0,
+              customSize: 50,
+              onTap: () => _handleMicSlotClick(activeSeats[i]),
+            );
+          },
+        ),
+      );
+    }
+
+    // 5. وضع الـ 10 مايكات (الوضع الوحيد بمايك علوي منفصل لصاحب المجلس + 3 صفوف متطابقة × 3 أعمدة)
+    if (_activeMicCount == 10) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          children: [
+            // مايك رقم 1 (صاحب المجلس) منفصل في الأعلى في المنتصف تماماً
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFEAB308)]),
-                  borderRadius: BorderRadius.circular(10),
+                  gradient: const RadialGradient(
+                    colors: [Color(0x33FFD700), Colors.transparent],
+                    radius: 1.1,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text('عرش صاحب المجلس الإمبراطوري 👑', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 10)),
-              ),
-              const SizedBox(height: 8),
-              SeatItemWidget(
-                seat: activeSeats[0],
-                isThrone: true,
-                onTap: () => _handleMicSlotClick(activeSeats[0]),
-              ),
-            ],
-          ),
-        ),
-
-        // مقاعد كبار الشخصيات والنواب (المقاعد 2 إلى 6)
-        Container(
-          padding: const EdgeInsets.all(8),
-          margin: const EdgeInsets.only(bottom: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF140A30).withOpacity(0.6),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF9333EA).withOpacity(0.3)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(5, (i) {
-              final seat = activeSeats[i + 1];
-              return Expanded(
-                child: SeatItemWidget(
-                  seat: seat,
-                  customSize: 42,
-                  onTap: () => _handleMicSlotClick(seat),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      margin: const EdgeInsets.only(bottom: 6),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFEAB308)]),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
+                      ),
+                      child: const Text(
+                        'صاحب المجلس 👑',
+                        style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 10),
+                      ),
+                    ),
+                    SeatItemWidget(
+                      seat: activeSeats[0],
+                      isThrone: true,
+                      customSize: 66,
+                      onTap: () => _handleMicSlotClick(activeSeats[0]),
+                    ),
+                  ],
                 ),
-              );
-            }),
-          ),
-        ),
-
-        // مقاعد الضيوف الـ 24 (المقاعد 7 إلى 30)
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F0724).withOpacity(0.5),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white12),
-          ),
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 6,
-              childAspectRatio: 0.82,
-              crossAxisSpacing: 6,
-              mainAxisSpacing: 8,
+              ),
             ),
-            itemCount: 24,
-            itemBuilder: (context, i) {
-              final seat = activeSeats[i + 6];
-              return SeatItemWidget(
-                seat: seat,
-                customSize: 36,
-                onTap: () => _handleMicSlotClick(seat),
-              );
-            },
-          ),
+            const SizedBox(height: 12),
+
+            // الـ 9 مايكات المتبقية مصفوفة بالتساوي الهندسي (3 صفوف × 3 أعمدة)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 0.92,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 12,
+                ),
+                itemCount: 9,
+                itemBuilder: (context, i) {
+                  final seat = activeSeats[i + 1];
+                  return SeatItemWidget(
+                    seat: seat,
+                    isThrone: false,
+                    customSize: 52,
+                    onTap: () => _handleMicSlotClick(seat),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
-      ],
+      );
+    }
+
+    // 6. وضع 15 أو 20 مايكاً (شبكة متناظرة بـ 5 أعمدة متطابقة)
+    if (_activeMicCount <= 20) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        child: GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 5,
+            childAspectRatio: 0.82,
+            crossAxisSpacing: 6,
+            mainAxisSpacing: 10,
+          ),
+          itemCount: activeSeats.length,
+          itemBuilder: (context, i) {
+            return SeatItemWidget(
+              seat: activeSeats[i],
+              isThrone: i == 0,
+              customSize: 42,
+              onTap: () => _handleMicSlotClick(activeSeats[i]),
+            );
+          },
+        ),
+      );
+    }
+
+    // 7. وضع الـ 30 مايك: شبكة GridView واحدة متساوية الأبعاد ومتناظرة بانتظام على كامل الشاشة
+    // (5 أعمدة × 6 صفوف = 30 مايكاً متطابقاً دون أي تقسيم أو مايكات معلقة)
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF120829).withOpacity(0.55),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0x33FFD700), width: 1.2),
+        ),
+        child: GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 5,
+            childAspectRatio: 0.82,
+            crossAxisSpacing: 6,
+            mainAxisSpacing: 8,
+          ),
+          itemCount: 30,
+          itemBuilder: (context, i) {
+            return SeatItemWidget(
+              seat: activeSeats[i],
+              isThrone: i == 0,
+              customSize: 40,
+              onTap: () => _handleMicSlotClick(activeSeats[i]),
+            );
+          },
+        ),
+      ),
     );
   }
 
