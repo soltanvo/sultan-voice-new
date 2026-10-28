@@ -27,21 +27,31 @@ class _RoyalAuthScreenState extends State<RoyalAuthScreen> {
   void _navigateToRoom() {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => const Royal30RoomScreen(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 600),
+        pageBuilder: (_, __, ___) => const Royal30RoomScreen(
           roomId: 'customer_service_room',
           roomTitle: 'غرفة خدمة العملاء الرسمية 👑',
         ),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
       ),
     );
   }
 
+  /// تسجيل أو إنشاء حساب رسمي مرتبط مباشرة بـ Supabase Auth
   Future<void> _submitAuth() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
       setState(() => _errorMessage = 'يرجى إدخال البريد الإلكتروني وكلمة المرور');
+      return;
+    }
+
+    if (password.length < 6) {
+      setState(() => _errorMessage = 'كلمة المرور يجب أن تتكون من 6 أحرف أو أرقام على الأقل');
       return;
     }
 
@@ -53,50 +63,60 @@ class _RoyalAuthScreenState extends State<RoyalAuthScreen> {
     try {
       if (AppConfig.isSupabaseConfigured) {
         final supabase = Supabase.instance.client;
+
         if (_isSignUp) {
-          await supabase.auth.signUp(
+          // إنشاء حساب رسمي جديد
+          final authRes = await supabase.auth.signUp(
             email: email,
             password: password,
           );
+
+          if (authRes.user != null) {
+            // مزامنة ملف المستخدم في جدول profiles
+            try {
+              await supabase.from('profiles').upsert({
+                'id': authRes.user!.id,
+                'display_name': email.split('@').first,
+                'role': 'user',
+                'coins': 1000,
+                'created_at': DateTime.now().toIso8601String(),
+              });
+            } catch (_) {}
+          }
         } else {
+          // تسجيل دخول رسمي بحساب موجود
           await supabase.auth.signInWithPassword(
             email: email,
             password: password,
           );
         }
       }
+
+      // الانتقال الفوري والمستقر للمجالس الملكية
       _navigateToRoom();
-    } catch (e) {
-      debugPrint('[Auth Notice]: $e');
+    } on AuthException catch (e) {
+      debugPrint('[Supabase Auth Exception]: ${e.message}');
       setState(() {
-        _errorMessage = 'تعذر تسجيل الدخول بالسيرفر. يمكنك استخدام الدخول السريع كضيف.';
+        final msg = e.message.toLowerCase();
+        if (msg.contains('invalid login credentials') || msg.contains('invalid credentials')) {
+          _errorMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+        } else if (msg.contains('already registered') || msg.contains('user already registered')) {
+          _errorMessage = 'هذا البريد مسجل بالفعل، يرجى التبديل لتسجيل الدخول';
+        } else if (msg.contains('password should be at least')) {
+          _errorMessage = 'كلمة المرور يجب ألا تقل عن 6 خانات';
+        } else if (msg.contains('invalid email') || msg.contains('format')) {
+          _errorMessage = 'صيغة البريد الإلكتروني غير صحيحة';
+        } else {
+          _errorMessage = e.message;
+        }
+      });
+    } catch (e) {
+      debugPrint('[General Auth Exception]: $e');
+      setState(() {
+        _errorMessage = 'حدث خطأ أثناء الاتصال بالخادم، يرجى المحاولة مرة أخرى';
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _guestLogin() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      if (AppConfig.isSupabaseConfigured) {
-        final supabase = Supabase.instance.client;
-        try {
-          await supabase.auth.signInAnonymously();
-        } catch (_) {
-          // استمرار فوري كضيف ملكي
-        }
-      }
-    } catch (_) {
-      // استمرار فوري
-    } finally {
-      if (mounted) {
-        _navigateToRoom();
-      }
     }
   }
 
@@ -123,7 +143,7 @@ class _RoyalAuthScreenState extends State<RoyalAuthScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // الشعار الملكي
+                  // الشعار الملكي الفاخر
                   Container(
                     width: 90,
                     height: 90,
@@ -158,30 +178,30 @@ class _RoyalAuthScreenState extends State<RoyalAuthScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    _isSignUp ? 'إنشاء حساب ملكي جديد 👑' : 'تسجيل الدخول إلى المجالس الملكية 👑',
+                    _isSignUp ? 'إنشاء حساب ملكي رسمي 👑' : 'تسجيل الدخول إلى المجالس الملكية 👑',
                     style: const TextStyle(fontSize: 13, color: Colors.white70),
                   ),
                   const SizedBox(height: 24),
 
-                  // رسالة الخطأ
+                  // رسالة الخطأ المترجمة بدقة
                   if (_errorMessage != null) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.red.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: Colors.redAccent.withOpacity(0.6)),
                       ),
                       child: Text(
                         _errorMessage!,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.redAccent, fontSize: 11),
+                        style: const TextStyle(color: Colors.redAccent, fontSize: 11.5, fontWeight: FontWeight.bold),
                       ),
                     ),
                     const SizedBox(height: 16),
                   ],
 
-                  // حقل البريد
+                  // حقل البريد الإلكتروني
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -212,7 +232,7 @@ class _RoyalAuthScreenState extends State<RoyalAuthScreen> {
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: const Color(0xFF140B30),
-                      hintText: 'كلمة المرور',
+                      hintText: 'كلمة المرور (6 خانات على الأقل)',
                       hintStyle: const TextStyle(color: Colors.white38),
                       prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFFFFD700)),
                       border: OutlineInputBorder(
@@ -225,12 +245,12 @@ class _RoyalAuthScreenState extends State<RoyalAuthScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 22),
 
-                  // زر تسجيل الدخول الأساسي
+                  // زر الدخول / التسجيل الرسمي (ممنوع أي دخول كضيف)
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: 52,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFFD700),
@@ -246,34 +266,14 @@ class _RoyalAuthScreenState extends State<RoyalAuthScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.black),
                             )
                           : Text(
-                              _isSignUp ? 'إنشاء حساب جديد' : 'دخول المجلس',
+                              _isSignUp ? 'إنشاء الحساب الملكي والدخول' : 'تسجيل الدخول للمجلس',
                               style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
                             ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 18),
 
-                  // زر الدخول السريع كزائر
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFFFD700),
-                        side: const BorderSide(color: Color(0xFFFFD700), width: 1.2),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                      icon: const Icon(Icons.flash_on_rounded, size: 20),
-                      label: const Text(
-                        'دخول فوري كضيف ملكي ⚡',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                      onPressed: _isLoading ? null : _guestLogin,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // التبديل بين تسجيل ودخول
+                  // التبديل بين إنشاء حساب وتسجيل الدخول
                   TextButton(
                     onPressed: () {
                       setState(() {
@@ -282,8 +282,8 @@ class _RoyalAuthScreenState extends State<RoyalAuthScreen> {
                       });
                     },
                     child: Text(
-                      _isSignUp ? 'لديك حساب بالفعل؟ تسجيل الدخول' : 'ليس لديك حساب؟ إنشاء حساب ملكي',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      _isSignUp ? 'لديك حساب مسجل بالفعل؟ اضغط هنا لتسجيل الدخول' : 'ليس لديك حساب؟ اضغط هنا لإنشاء حساب جديد',
+                      style: const TextStyle(color: Color(0xFFFFD700), fontSize: 12.5, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
