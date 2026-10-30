@@ -262,12 +262,21 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF090414),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(child: _buildBody()),
-          ],
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF0B0520), Color(0xFF070312)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(child: _buildBody()),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: _loading || _error != null ? null : _buildBottomBar(),
@@ -349,12 +358,12 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
     }
     final uid = _uid;
     return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 5,
-        childAspectRatio: 0.72,
+        childAspectRatio: 0.7,
         crossAxisSpacing: 8,
-        mainAxisSpacing: 12,
+        mainAxisSpacing: 20,
       ),
       itemCount: _seats.length,
       itemBuilder: (context, i) {
@@ -413,31 +422,82 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
 
   Widget _buildBottomBar() {
     final mine = _mySeat;
+    final micOn = mine != null && !mine.isMuted;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
       decoration: const BoxDecoration(
         color: Color(0xFF0D0621),
-        border: Border(top: BorderSide(color: Color(0x33FFD700))),
+        border: Border(top: BorderSide(color: Color(0x1FFFFFFF))),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          Expanded(
-            child: Text(
-              mine == null ? 'اضغط على مايك فارغ للجلوس' : 'أنت على المايك ${mine.seatIndex + 1}',
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
+          _RoundControl(
+            icon: micOn ? Icons.mic_rounded : Icons.mic_off_rounded,
+            label: mine == null ? 'اجلس أولاً' : (micOn ? 'المايك مفتوح' : 'مكتوم'),
+            active: micOn,
+            onTap: _busy ? null : _toggleMute,
+          ),
+          _RoundControl(
+            icon: Icons.logout_rounded,
+            label: 'النزول',
+            active: false,
+            onTap: mine == null || _busy ? null : _leaveSeat,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoundControl extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback? onTap;
+
+  const _RoundControl({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: onTap == null ? 0.4 : 1,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: active ? const Color(0x2622D3EE) : const Color(0x14FFFFFF),
+                border: Border.all(
+                  color: active ? const Color(0xFF3B82F6) : const Color(0x33FFFFFF),
+                  width: 1.5,
+                ),
+                boxShadow: active
+                    ? const [BoxShadow(color: Color(0x663B82F6), blurRadius: 16, spreadRadius: 1)]
+                    : null,
+              ),
+              child: Icon(
+                icon,
+                color: active ? const Color(0xFF22D3EE) : Colors.white70,
+                size: 26,
+              ),
             ),
           ),
-          ElevatedButton.icon(
-            onPressed: _busy ? null : _toggleMute,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: mine == null || mine.isMuted ? const Color(0xFF2A1650) : const Color(0xFFFFD700),
-              foregroundColor: mine == null || mine.isMuted ? Colors.white : Colors.black,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            icon: Icon(mine == null || mine.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded, size: 18),
-            label: Text(mine == null || mine.isMuted ? 'مكتوم' : 'المايك مفتوح',
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
           ),
         ],
       ),
