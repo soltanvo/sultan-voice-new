@@ -7,7 +7,7 @@ class AppConfig {
   static const String supabaseAnonKey = 'sb_publishable_Fhk48BtMgv322a-_zFH4vw_XVT1Q_4w';
 
   /// رابط خادم LiveKit للغرف الصوتية WebRTC
-  static const String liveKitUrl = 'wss://YOUR_LIVEKIT_SERVER_URL.livekit.cloud';
+  static const String liveKitUrl = 'wss://soltan1-7mmq7vfh.livekit.cloud';
 
   /// التحقق البرمجي الآمن من صلاحية الرابط لتفادي أي انهيار للتطبيق
   static bool get isSupabaseConfigured {
