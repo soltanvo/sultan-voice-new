@@ -43,6 +43,8 @@ class LiveKitService extends ChangeNotifier {
 
       await _room!.connect(liveKitUrl, token200);
       _isConnected = true;
+      _isMicMuted = false;
+      await _room!.localParticipant?.setMicrophoneEnabled(true);
       notifyListeners();
       debugPrint('[Voic LiveKit] تم الاتصال بنجاح بالغرفة الملكية (Token 200)');
       return true;

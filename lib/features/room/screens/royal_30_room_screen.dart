@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/services/livekit_service.dart';
 import '../../../features/auth/screens/royal_auth_screen.dart';
 import '../models/room_seat.dart';
@@ -140,8 +141,31 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
           .select();
       if (taken.isEmpty) {
         _showMessage('تم أخذ هذا المايك قبل لحظات');
+        return;
       }
+      await _connectVoice();
     });
+  }
+
+  Future<void> _connectVoice() async {
+    final liveKit = context.read<LiveKitService>();
+    try {
+      final res = await _client.functions.invoke('livekit-token', body: {'roomId': widget.roomId});
+      final data = res.data;
+      final token = data is Map ? data['token'] as String? : null;
+      if (token == null) {
+        _showMessage('الصوت غير مفعّل بعد، المايك متاح للاستماع فقط');
+        return;
+      }
+      final connected = await liveKit.connectToRoyalRoom(
+        liveKitUrl: AppConfig.liveKitUrl,
+        token200: token,
+      );
+      if (!connected) _showMessage('تعذر تشغيل المايك، تحقق من إذن الميكروفون');
+    } catch (e) {
+      debugPrint('[Room voice] $e');
+      _showMessage('تعذر الاتصال بالصوت حالياً');
+    }
   }
 
   Future<void> _leaveSeat() async {
