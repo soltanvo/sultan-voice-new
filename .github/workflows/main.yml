@@ -22,10 +22,18 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Clean Up and Prepare Android
+      - name: Fill in missing Android scaffolding
+        run: flutter create . --platforms android
+
+      - name: Ensure voice permissions in AndroidManifest
         run: |
-          rm -rf android
-          flutter create . --platforms android
+          f=android/app/src/main/AndroidManifest.xml
+          for p in INTERNET RECORD_AUDIO MODIFY_AUDIO_SETTINGS; do
+            if ! grep -q "android.permission.$p" "$f"; then
+              sed -i "0,/<manifest[^>]*>/s//&\n    <uses-permission android:name=\"android.permission.$p\" \/>/" "$f"
+            fi
+          done
+          grep -q "android.permission.RECORD_AUDIO" "$f"
 
       - name: Get dependencies
         run: flutter pub get
