@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/services/livekit_service.dart';
+import '../../../core/services/gift_service.dart';
 import '../../../features/auth/screens/royal_auth_screen.dart';
 import '../models/room_seat.dart';
+import '../widgets/gift_sheet.dart';
 import '../widgets/seat_item_widget.dart';
 
 class Royal30RoomScreen extends StatefulWidget {
@@ -20,9 +22,11 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
   static const int _seatCount = 30;
 
   final _client = Supabase.instance.client;
+  late final GiftService _giftService = GiftService(_client);
 
   String _roomTitle = '';
   List<RoomSeat> _seats = const [];
+  int _coins = 0;
   bool _loading = true;
   bool _busy = false;
   String? _error;
@@ -74,10 +78,13 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
         return;
       }
 
+      final coins = await _giftService.fetchCoins(_uid!);
+
       if (!mounted) return;
       setState(() {
         _roomTitle = room['title'] as String;
         _seats = seats;
+        _coins = coins;
         _loading = false;
       });
     } catch (e) {
@@ -203,6 +210,28 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
         await liveKit.toggleMicrophone();
       }
     });
+  }
+
+  Future<void> _openGiftSheet({int? seatIndex}) async {
+    final uid = _uid;
+    if (uid == null) return;
+    final recipients = _seats.where((s) => s.isOccupied && s.userId != uid).toList();
+    final balance = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF14082E),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => GiftSheet(
+        giftService: _giftService,
+        roomId: widget.roomId,
+        coins: _coins,
+        recipients: recipients,
+        initialSeatIndex: seatIndex,
+      ),
+    );
+    if (balance == null || !mounted) return;
+    setState(() => _coins = balance);
+    _showMessage('تم إرسال الهدية');
   }
 
   Future<void> _signOut() async {
@@ -377,7 +406,7 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
             } else if (!seat.isOccupied) {
               _takeSeat(seat);
             } else {
-              _showMessage('هذا المايك مشغول');
+              _openGiftSheet(seatIndex: seat.seatIndex);
             }
           },
         );
@@ -437,6 +466,12 @@ class _Royal30RoomScreenState extends State<Royal30RoomScreen> {
             label: mine == null ? 'اجلس أولاً' : (micOn ? 'المايك مفتوح' : 'مكتوم'),
             active: micOn,
             onTap: _busy ? null : _toggleMute,
+          ),
+          _RoundControl(
+            icon: Icons.card_giftcard_rounded,
+            label: 'هدية',
+            active: false,
+            onTap: _busy ? null : () => _openGiftSheet(),
           ),
           _RoundControl(
             icon: Icons.logout_rounded,
