@@ -31,10 +31,7 @@ class _RoyalAuthScreenState extends State<RoyalAuthScreen> {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 600),
-        pageBuilder: (_, __, ___) => const Royal30RoomScreen(
-          roomId: 'customer_service_room',
-          roomTitle: 'غرفة خدمة العملاء الرسمية 👑',
-        ),
+        pageBuilder: (_, __, ___) => const Royal30RoomScreen(roomId: 'customer_service_room'),
         transitionsBuilder: (_, animation, __, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -45,7 +42,7 @@ class _RoyalAuthScreenState extends State<RoyalAuthScreen> {
   /// تنفيذ المصادقة الحقيقية عبر سيرفر Supabase في الوقت الفعلي
   Future<void> _submitAuth() async {
     final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+    final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
       setState(() => _errorMessage = 'يرجى إدخال البريد الإلكتروني وكلمة المرور');
@@ -76,18 +73,11 @@ class _RoyalAuthScreenState extends State<RoyalAuthScreen> {
         final authRes = await supabase.auth.signUp(
           email: email,
           password: password,
+          data: {'display_name': email.split('@').first},
         );
 
-        if (authRes.user != null) {
-          try {
-            await supabase.from('profiles').upsert({
-              'id': authRes.user!.id,
-              'display_name': email.split('@').first,
-              'role': 'user',
-              'coins': 1000,
-              'created_at': DateTime.now().toIso8601String(),
-            });
-          } catch (_) {}
+        if (authRes.session == null) {
+          await supabase.auth.signInWithPassword(email: email, password: password);
         }
       } else {
         await supabase.auth.signInWithPassword(

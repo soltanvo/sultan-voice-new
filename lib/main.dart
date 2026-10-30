@@ -14,9 +14,6 @@ import 'features/room/screens/royal_30_room_screen.dart';
 /// رقم الإصدار الحالي المثبت على هذا الجهاز
 const String kCurrentAppVersion = '1.0.0';
 
-/// تعريف مطابق لـ HomeScreen ليتوافق مع أي استدعاء خارجي
-typedef HomeScreen = Royal30RoomScreen;
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -26,7 +23,7 @@ Future<void> main() async {
   ]);
 
   // تشغيل روتين تسخين الشبكة العالمية في الخلفية دون أي تعطيل
-  unawaited(TelecomWarmupService().warmupGlobalEndpoints());
+  TelecomWarmupService().warmupGlobalEndpoints();
   
   // تهيئة Supabase بأمان تام في الخلفية
   if (AppConfig.isSupabaseConfigured) {
@@ -51,8 +48,6 @@ Future<void> main() async {
     ),
   );
 }
-
-void unawaited(Future<void> future) {}
 
 class SultanVoicApp extends StatelessWidget {
   const SultanVoicApp({super.key});
@@ -138,10 +133,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // إذا كان لديه حساب رسمي مسجل مسبقاً -> يدخل فوراً للغرفة الرسمية
     // إذا لم يكن مسجلاً -> التوجه الإجباري لشاشة تسجيل الدخول (ممنوع دخول الزوار بدون حساب)
     final Widget targetScreen = hasOfficialSession
-        ? const Royal30RoomScreen(
-            roomId: 'customer_service_room',
-            roomTitle: 'غرفة خدمة العملاء الرسمية 👑',
-          )
+        ? const Royal30RoomScreen(roomId: 'customer_service_room')
         : const RoyalAuthScreen();
 
     Navigator.of(context).pushReplacement(
