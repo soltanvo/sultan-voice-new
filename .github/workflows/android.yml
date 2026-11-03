@@ -1,0 +1,58 @@
+name: Android Release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Fill in missing Android scaffolding
+        run: flutter create . --platforms android
+
+      - name: Ensure voice permissions in AndroidManifest
+        run: |
+          f=android/app/src/main/AndroidManifest.xml
+          for p in INTERNET RECORD_AUDIO MODIFY_AUDIO_SETTINGS; do
+            if ! grep -q "android.permission.$p" "$f"; then
+              sed -i "0,/<manifest[^>]*>/s//&\n    <uses-permission android:name=\"android.permission.$p\" \/>/" "$f"
+            fi
+          done
+          grep -q "android.permission.RECORD_AUDIO" "$f"
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Publish GitHub Release with APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v1.0.0-build.${GITHUB_RUN_NUMBER}"
+          APK="sultan-voice-${TAG}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$APK"
+          gh release create "$TAG" "$APK" \
+            --target "$GITHUB_SHA" \
+            --title "Sultan Voice ${TAG}" \
+            --notes "Release APK built automatically from commit ${GITHUB_SHA}."
