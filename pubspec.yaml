@@ -33,6 +33,7 @@ dependencies:
   url_launcher: ^6.2.6
 
 dependency_overrides:
+  app_links: 6.3.2
   protobuf: ^6.0.0
 
 dev_dependencies:
@@ -42,3 +43,15 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/images/greedy_box.png
+    - assets/images/fortune_dragon.png
+    - assets/images/slot_tiger.png
+    - assets/images/queen_of_bounty.png
+    - assets/images/yummy.png
+    - assets/images/mahjong_ways_2.png
+    - assets/images/luck_77.png
+    - assets/images/gates_of_olympus.png
+    - assets/images/fortune_tiger.png
+    - assets/images/sultan_splash_bg.png

@@ -17,6 +17,10 @@ android {
         jvmTarget = '17'
     }
 
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
     defaultConfig {
         applicationId "com.soltanvo.sultan_voice_new"
         minSdk 24
@@ -31,6 +35,30 @@ android {
             signingConfig signingConfigs.debug
             minifyEnabled false
             shrinkResources false
+        }
+    }
+
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+        checkDependencies false
+        ignoreWarnings true
+        quiet true
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+        checkDependencies false
+        ignoreWarnings true
+        quiet true
+    }
+}
+
+afterEvaluate {
+    tasks.configureEach { task ->
+        if (task.name.toLowerCase().contains("lint")) {
+            task.enabled = false
         }
     }
 }

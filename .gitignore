@@ -1,7 +1,10 @@
--e build/
+build/
 .dart_tool/
 .gradle/
 local.properties
 *.apk
+*.zip
 .DS_Store
 .env
+node_modules/
+dist/
