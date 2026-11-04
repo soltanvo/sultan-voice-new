@@ -10,6 +10,19 @@ subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
 
+subprojects { project ->
+    project.plugins.withId("com.android.library") {
+        project.android {
+            compileSdk = 35
+        }
+    }
+    project.plugins.withId("com.android.application") {
+        project.android {
+            compileSdk = 35
+        }
+    }
+}
+
 subprojects { subproject ->
     if (subproject.name != "app") {
         evaluationDependsOn(":app")
