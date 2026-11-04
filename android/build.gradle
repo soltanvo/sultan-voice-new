@@ -6,19 +6,21 @@ allprojects {
 }
 
 rootProject.buildDir = "../build"
+
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
 
+// Force Android app and library modules (including LiveKit) to use API 35.
 subprojects { project ->
     project.plugins.withId("com.android.library") {
         project.android {
-            compileSdk = 35
+            compileSdkVersion 35
         }
     }
     project.plugins.withId("com.android.application") {
         project.android {
-            compileSdk = 35
+            compileSdkVersion 35
         }
     }
 }
