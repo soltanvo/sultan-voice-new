@@ -13,10 +13,10 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   
-  # الصوت المباشر والـ WebRTC (Token 200)
-  livekit_client: ^2.2.0
+  # الصوت المباشر والـ WebRTC (Token 200) متوافق تماماً مع protobuf 3.x
+  livekit_client: 2.2.0
   permission_handler: ^11.3.1
-  protobuf: ^6.0.0
+  protobuf: ^3.1.0
   
   # قاعدة البيانات والمصادقة الفورية
   supabase_flutter: ^2.8.0
@@ -34,7 +34,7 @@ dependencies:
 
 dependency_overrides:
   app_links: 6.3.2
-  protobuf: ^6.0.0
+  protobuf: 3.1.0
 
 dev_dependencies:
   flutter_test:
